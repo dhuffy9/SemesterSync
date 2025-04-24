@@ -17,7 +17,7 @@
             </button>
             <div class="mini-calendar">
                 <div class="month-navigation">
-                    <span class="month-year" id="mini-month-year">April 2025</span>
+                    <span class="month-year" id="mini-month-year">dicsember 2025</span>
                     <div class="nav-arrows">
                         <span class="arrow" id="prev-month">&lt;</span>
                         <span class="arrow" id="next-month">&gt;</span>
@@ -30,20 +30,9 @@
                     <!-- Days will be inserted by JS -->
                 </div>
             </div>
-            <div class="calendar-list">
-                <h3>My Calendars</h3>
-                <div class="calendar-item">
-                    <div class="color-dot" style="background-color: #4285F4;"></div>
-                    <span>Classes</span>
-                </div>
-                <div class="calendar-item">
-                    <div class="color-dot" style="background-color: #EA4335;"></div>
-                    <span>Assignments</span>
-                </div>
-                <div class="calendar-item">
-                    <div class="color-dot" style="background-color: #34A853;"></div>
-                    <span>Office Hours</span>
-                </div>
+            <div id="class-list">
+                <h3>My Classes</h3>
+                <!-- Will be filled dynamically by JS -->
             </div>
         </div>
 
@@ -127,6 +116,9 @@
                         <option value="#FBBC05">Yellow</option>
                         <option value="#34A853">Green</option>
                         <option value="#8E24AA">Purple</option>
+                        <option value="#FF6B00">Orange</option>
+                        <option value="#00A5A5">Teal</option>
+                        <option value="#FF4081">Pink</option>
                     </select>
                 </div>
                 <div id="error-message" class="error-message"></div>

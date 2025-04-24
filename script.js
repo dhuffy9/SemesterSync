@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevWeekBtn = document.getElementById('prev-week');
     const nextWeekBtn = document.getElementById('next-week');
     const currentMonthYearElement = document.getElementById('current-month-year');
+    const classList = document.getElementById("class-list");
     const scheduleTabs = document.getElementById('schedule-tabs');
     const addTabBtn = document.getElementById('add-tab');
     const calendarsContainer = document.getElementById('calendars-container');
@@ -448,6 +449,23 @@ document.addEventListener('DOMContentLoaded', () => {
             showErrorMessage(`Schedule conflict with ${conflict.courseNum}: ${conflict.title} on ${conflict.days.filter(day => selectedDays.includes(day)).join(', ')}`);
             return;
         }
+
+
+        // Creates new course div
+        // <div class="class-item">
+        //     <div class="color-dot" style="background-color: #EA4335;"></div>
+        //     <span>Assignments</span>
+        // </div>
+        const courseDiv = document.createElement("div");
+        courseDiv.className = 'class-item';
+        const courseDotDiv = document.createElement("div");
+        courseDotDiv.className = 'color-dot';
+        courseDotDiv.style.backgroundColor = color;
+        const courseNameSpan = document.createElement("span");
+        courseNameSpan.textContent = title;
+
+        courseDiv.append(courseDotDiv, courseNameSpan)
+        classList.appendChild(courseDiv)
         
         // Add new course to active tab
         const activeTab = getActiveTab();
