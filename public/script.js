@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize calendar
     initCalendar();
+    setupClassListItemListeners();
     
     // Event listeners
     prevWeekBtn.addEventListener('click', () => navigateWeek(-1));
@@ -96,6 +97,19 @@ document.addEventListener('DOMContentLoaded', () => {
             activateTab(tabId);
         }
     });
+
+    function setupClassListItemListeners() {
+        // Get all class items and add click listeners
+        document.querySelectorAll('.class-item').forEach(courseDiv => {
+            courseDiv.addEventListener('click', () => {
+                const activeTab = getActiveTab();
+                const course = activeTab.courses.find(c => c.id === parseInt(courseDiv.dataset.courseId));
+                if (course) {
+                    openEditModal(course);
+                }
+            });
+        });
+    }
 
     function validateTimes() {
         const startTime = document.getElementById('start-time').value;
@@ -643,6 +657,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const courseDiv = document.createElement("div");
             courseDiv.className = 'class-item';
             courseDiv.dataset.courseId = newCourse.id;
+            courseDiv.addEventListener('click', () => {
+                const course = activeTab.courses.find(c => c.id === parseInt(courseDiv.dataset.courseId));
+                if (course) {
+                    openEditModal(course);
+                }
+            });
             
             const courseDotDiv = document.createElement("div");
             courseDotDiv.className = 'color-dot';
