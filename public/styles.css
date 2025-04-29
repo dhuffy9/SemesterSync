@@ -336,6 +336,7 @@ body {
     font-size: 12px;
     text-align: center;
     margin-top: -10px;
+    height: 60px; /* INCREASED from default to match hour height */
 }
 
 .week-view {
@@ -348,7 +349,7 @@ body {
 .day-column {
     position: relative;
     border-right: 1px solid #eee;
-    height: 600px; /* Fixed height for all day columns */
+    height: 840px; /* INCREASED from 600px to 840px (60px per hour × 14 hours) */
 }
 
 .day-column:last-child {
@@ -373,7 +374,9 @@ body {
     cursor: pointer;
     z-index: 2;
     overflow: hidden;
-    font-size: 12px;
+    font-size: 13px; /* Increased from 12px */
+    min-height: 28px; /* Ensure minimum height */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .event-title {
@@ -382,10 +385,11 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-size: 13px;
 }
 
 .event-details {
-    opacity: 0.8;
+    opacity: 0.9;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

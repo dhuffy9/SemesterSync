@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addTabBtn = document.getElementById('add-tab');
     const calendarsContainer = document.getElementById('calendars-container');
     const courseModal = document.getElementById('course-modal');
+
     const addCourseBtn = document.getElementById('addCourseBtn');
     const closeModalBtn = document.querySelector('.close');
     const courseForm = document.getElementById('course-form');
@@ -50,53 +51,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('start-time').addEventListener('change', validateTimes);
     document.getElementById('end-time').addEventListener('change', validateTimes);
-    
-    window.addEventListener('click', (event) => {
-        if (event.target == courseModal) {
-            closeModal();
-        }
-    });
-    
-    // Search functionality
-    const searchInput = document.getElementById('class-search');
-    const searchResults = document.getElementById('search-results');
-    
-    // Real-time search as user types
-    searchInput.addEventListener('input', handleSearchInput);
-    
-    // Also keep Enter key functionality
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleSearchInput();
-        }
-    });
-    
-    // Clear search results when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!searchResults.contains(e.target) && e.target !== searchInput) {
-            searchResults.innerHTML = '';
-        }
-    });
-    
-    // Tab handling
-    scheduleTabs.addEventListener('click', (event) => {
-        // Check if we clicked on a tab or its child elements
-        const tabElement = event.target.closest('.tab:not(.add-tab)');
-        const closeBtn = event.target.closest('.close-tab');
-        
-        if (closeBtn) {
-            // Handle tab closing
-            const tabId = tabElement.getAttribute('data-tab-id');
-            if (tabs.length > 1) { // Don't allow closing the last tab
-                closeTab(tabId);
-                event.stopPropagation(); // Prevent the tab from being activated
+
+    function initCalendar() {
+        // Get all tabs from localStorage if available
+        const savedTabs = localStorage.getItem('semesterSyncTabs');
+        if (savedTabs) {
+            try {
+                const parsedTabs = JSON.parse(savedTabs);
+                // Convert date strings back to Date objects
+                parsedTabs.forEach(tab => {
+                    tab.currentDate = new Date(tab.currentDate);
+                    tab.selectedDate = new Date(tab.selectedDate);
+                });
+                tabs = parsedTabs;
+            } catch (e) {
+                console.error("Error parsing saved tabs:", e);
             }
-        } else if (tabElement) {
-            // Handle tab activation
-            const tabId = tabElement.getAttribute('data-tab-id');
-            activateTab(tabId);
         }
-    });
+
+        // Update active tab
+        const savedActiveTabId = localStorage.getItem('semesterSyncActiveTabId');
+        if (savedActiveTabId && tabs.some(tab => tab.id === savedActiveTabId)) {
+            activeTabId = savedActiveTabId;
+        }
+
+        // Create tab elements
+        tabs.forEach(tab => {
+            if (tab.id !== 'tab-1') {
+                // Create tab element if it doesn't exist
+                const tabElement = createTabElement(tab);
+                addTabBtn.before(tabElement);
+
+                // Create calendar tab for this tab if it doesn't exist
+                if (!document.getElementById(tab.id)) {
+                    const calendarTab = createCalendarTab(tab);
+                    calendarsContainer.appendChild(calendarTab);
+                }
+            }
+        });
+
+        setActiveTab(getActiveTab().id);
+        renderAllTabs();
+        updateMiniCalendar();
+        
+        // Add class search input event listener
+        const searchInput = document.getElementById('class-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', handleSearchInput);
+        }
+    }
 
     function setupClassListItemListeners() {
         // Get all class items and add click listeners
@@ -137,106 +140,218 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessageDiv.classList.remove('show');
     }
 
-    function initCalendar() {
-        updateMiniCalendar();
-        renderAllTabs();
-    }
-    
     function getActiveTab() {
-        return tabs.find(tab => tab.id === activeTabId);
+        return tabs.find(tab => tab.id === activeTabId) || tabs[0];
     }
-    
-    function activateTab(tabId) {
-        // Deactivate all tabs
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelectorAll('.calendar-tab').forEach(calendar => {
-            calendar.classList.remove('active');
-        });
-        
-        // Activate the selected tab
-        document.querySelector(`.tab[data-tab-id="${tabId}"]`).classList.add('active');
-        const calendarTab = document.getElementById(tabId);
-        if (calendarTab) {
-            calendarTab.classList.add('active');
-        }
-        
-        activeTabId = tabId;
-        updateTabHeader();
-    }
-    
+
     function createNewTab() {
-        // Create new tab data
-        const tabNumber = parseInt(tabs[tabs.length -1].name.split(" ")[1]) + 1;
-        const tabId = `tab-${tabNumber}`;
+        // Generate a new unique tab id
+        const newTabId = `tab-${Date.now()}`;
+        
+        // Create tab data
         const newTab = {
-            id: tabId,
-            name: `Schedule ${tabNumber}`,
+            id: newTabId,
+            name: `Schedule ${tabs.length + 1}`,
             currentDate: new Date(),
             selectedDate: new Date(),
             courses: []
         };
         
+        // Add to tabs array
         tabs.push(newTab);
         
-        // Create new tab button
+        // Create tab element in DOM
+        const tabElement = createTabElement(newTab);
+        addTabBtn.before(tabElement);
+        
+        // Create calendar tab for this tab
+        const calendarTab = createCalendarTab(newTab);
+        calendarsContainer.appendChild(calendarTab);
+        
+        // Set as active tab
+        setActiveTab(newTabId);
+        
+        // Save to localStorage
+        saveTabs();
+    }
+
+    function createTabElement(tab) {
         const tabElement = document.createElement('li');
         tabElement.className = 'tab';
-        tabElement.setAttribute('data-tab-id', tabId);
-        tabElement.innerHTML = `${newTab.name} <span class="close-tab">×</span>`;
+        tabElement.dataset.tabId = tab.id;
+        tabElement.textContent = tab.name;
         
-        // Insert before the "+" button
-        scheduleTabs.insertBefore(tabElement, addTabBtn);
-        
-        // Create new calendar container
-        const calendarContainer = document.createElement('div');
-        calendarContainer.id = tabId;
-        calendarContainer.className = 'calendar-tab';
-        calendarContainer.innerHTML = `
-            <div class="calendar">
-                <div class="weekdays-header" id="week-dates-${tabId}">
-                    <!-- Will be filled dynamically by JS -->
-                </div>
-                <div class="week-view-wrapper">
-                    <div class="time-indicators" id="time-indicators-${tabId}">
-                        <!-- Time indicators will be added here -->
-                    </div>
-                    <div class="week-view" id="week-view-${tabId}">
-                        <!-- Calendar grid will be generated by JS -->
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        calendarsContainer.appendChild(calendarContainer);
-        
-        // Render and activate the new tab
-        renderWeekView(newTab);
-        activateTab(tabId);
-    }
-    
-    function closeTab(tabId) {
-        // Remove tab from data
-        const tabIndex = tabs.findIndex(tab => tab.id === tabId);
-        tabs.splice(tabIndex, 1);
-        
-        // Remove tab button
-        document.querySelector(`.tab[data-tab-id="${tabId}"]`).remove();
-        
-        // Remove tab content
-        document.getElementById(tabId).remove();
-        
-        // Activate the first tab if the active tab was closed
-        if (activeTabId === tabId) {
-            activateTab(tabs[0].id);
+        // Add close button if more than one tab exists
+        if (tabs.length > 1) {
+            const closeBtn = document.createElement('span');
+            closeBtn.className = 'close-tab';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeTab(tab.id);
+            });
+            tabElement.appendChild(closeBtn);
         }
+        
+        // Add click event to select tab
+        tabElement.addEventListener('click', () => {
+            setActiveTab(tab.id);
+        });
+        
+        return tabElement;
+    }
+
+    function createCalendarTab(tab) {
+        const calendarTab = document.createElement('div');
+        calendarTab.id = tab.id;
+        calendarTab.className = 'calendar-tab';
+        
+        const calendar = document.createElement('div');
+        calendar.className = 'calendar';
+        
+        // Create weekdays header
+        const weekDatesHeader = document.createElement('div');
+        weekDatesHeader.className = 'weekdays-header';
+        weekDatesHeader.id = `week-dates-${tab.id}`;
+        
+        // Create week view wrapper
+        const weekViewWrapper = document.createElement('div');
+        weekViewWrapper.className = 'week-view-wrapper';
+        
+        // Create time indicators
+        const timeIndicators = document.createElement('div');
+        timeIndicators.className = 'time-indicators';
+        timeIndicators.id = `time-indicators-${tab.id}`;
+        
+        // Create week view
+        const weekView = document.createElement('div');
+        weekView.className = 'week-view';
+        weekView.id = `week-view-${tab.id}`;
+        
+        weekViewWrapper.appendChild(timeIndicators);
+        weekViewWrapper.appendChild(weekView);
+        
+        calendar.appendChild(weekDatesHeader);
+        calendar.appendChild(weekViewWrapper);
+        
+        calendarTab.appendChild(calendar);
+        
+        return calendarTab;
+    }
+
+    function setActiveTab(tabId) {
+        // Remove active class from all tabs and calendar tabs
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.calendar-tab').forEach(calTab => calTab.classList.remove('active'));
+        
+        // Set active class on selected tab and calendar tab
+        const tabElement = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+        const calendarTab = document.getElementById(tabId);
+        
+        if (tabElement && calendarTab) {
+            tabElement.classList.add('active');
+            calendarTab.classList.add('active');
+            activeTabId = tabId;
+            
+            // Update header and mini calendar to reflect active tab's date
+            updateTabHeader();
+            renderWeekView();
+            updateMiniCalendar();
+            
+            // Save active tab to localStorage
+            localStorage.setItem('semesterSyncActiveTabId', tabId);
+        }
+    }
+
+    function removeTab(tabId) {
+        // Don't remove the last tab
+        if (tabs.length <= 1) return;
+        
+        // Check if we're removing the active tab
+        const isRemovingActiveTab = activeTabId === tabId;
+        
+        // Remove tab from tabs array
+        const tabIndex = tabs.findIndex(tab => tab.id === tabId);
+        if (tabIndex !== -1) {
+            tabs.splice(tabIndex, 1);
+        }
+        
+        // Remove tab element from DOM
+        const tabElement = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+        if (tabElement) tabElement.remove();
+        
+        // Remove calendar tab from DOM
+        const calendarTab = document.getElementById(tabId);
+        if (calendarTab) calendarTab.remove();
+        
+        // If removing active tab, set a different tab as active
+        if (isRemovingActiveTab) {
+            setActiveTab(tabs[0].id);
+        }
+        
+        // Update tab names
+        updateTabNames();
+        
+        // Add or remove close buttons based on tab count
+        updateCloseButtons();
+        
+        // Save to localStorage
+        saveTabs();
+    }
+
+    function updateTabNames() {
+        // Rename tabs to be sequential
+        tabs.forEach((tab, index) => {
+            tab.name = `Schedule ${index + 1}`;
+            const tabElement = document.querySelector(`.tab[data-tab-id="${tab.id}"]`);
+            if (tabElement) {
+                // Keep the close button if it exists
+                const closeBtn = tabElement.querySelector('.close-tab');
+                tabElement.textContent = tab.name;
+                if (closeBtn) tabElement.appendChild(closeBtn);
+            }
+        });
+    }
+
+    function updateCloseButtons() {
+        // Show close buttons only if there are multiple tabs
+        const showCloseButtons = tabs.length > 1;
+        
+        tabs.forEach(tab => {
+            const tabElement = document.querySelector(`.tab[data-tab-id="${tab.id}"]`);
+            if (tabElement) {
+                let closeBtn = tabElement.querySelector('.close-tab');
+                
+                if (showCloseButtons && !closeBtn) {
+                    closeBtn = document.createElement('span');
+                    closeBtn.className = 'close-tab';
+                    closeBtn.innerHTML = '&times;';
+                    closeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeTab(tab.id);
+                    });
+                    tabElement.appendChild(closeBtn);
+                } else if (!showCloseButtons && closeBtn) {
+                    closeBtn.remove();
+                }
+            }
+        });
     }
 
     function updateTabHeader() {
         const activeTab = getActiveTab();
+        
+        // Update month and year in header
         const options = { year: 'numeric', month: 'long' };
         currentMonthYearElement.textContent = new Intl.DateTimeFormat('en-US', options).format(activeTab.currentDate);
+    }
+
+    function saveTabs() {
+        try {
+            localStorage.setItem('semesterSyncTabs', JSON.stringify(tabs));
+        } catch (e) {
+            console.error("Error saving tabs:", e);
+        }
     }
 
     function renderAllTabs() {
@@ -256,11 +371,11 @@ document.addEventListener('DOMContentLoaded', () => {
         weekView.innerHTML = '';
         timeIndicators.innerHTML = '';
         
-        // Add time indicators (from 8am to 10pm)
+        // UPDATED: Add time indicators (from 8am to 10pm)
         const dayStart = 8; // 8am
         const dayEnd = 22;  // 10pm
-        const dayHeight = 600; // height in pixels
-        const hourHeight = dayHeight / (dayEnd - dayStart);
+        const dayHeight = 840; // INCREASED from 600 to 840 (60px per hour × 14 hours)
+        const hourHeight = 60; // INCREASED from ~42.8px to 60px per hour
         
         for (let hour = dayStart; hour < dayEnd; hour++) {
             const timeDiv = document.createElement('div');
@@ -364,11 +479,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Calculate position and height (assuming day starts at 8am and ends at 10pm)
                     const dayStart = 8; // 8am
-                    const dayHeight = 600; // height of day column in pixels
+                    const dayHeight = 840; // INCREASED from 600 to 840 (60px per hour × 14 hours)
                     const dayHours = 14; // 14 hours (8am to 10pm)
+                    const hourHeight = 60; // INCREASED from ~42.8px to 60px per hour
                     
-                    const startPosition = ((startHour - dayStart) + startMinute / 60) * (dayHeight / dayHours);
-                    const endPosition = ((endHour - dayStart) + endMinute / 60) * (dayHeight / dayHours);
+                    // Improved calculation for precise positioning
+                    const startPosition = ((startHour - dayStart) * hourHeight) + ((startMinute / 60) * hourHeight);
+                    const endPosition = ((endHour - dayStart) * hourHeight) + ((endMinute / 60) * hourHeight);
                     const eventHeight = endPosition - startPosition;
                     
                     // Create event element
@@ -376,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     eventElement.className = 'event';
                     eventElement.dataset.courseId = course.id;
                     eventElement.style.top = `${startPosition}px`;
-                    eventElement.style.height = `${eventHeight}px`;
+                    eventElement.style.height = `${Math.max(eventHeight, 28)}px`; // Minimum height for visibility
                     eventElement.style.backgroundColor = course.color || '#4285F4';
                     
                     const eventTitle = document.createElement('div');
@@ -385,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const eventDetails = document.createElement('div');
                     eventDetails.className = 'event-details';
-                    eventDetails.textContent = `${course.instructor} • ${formatTime(course.startTime)} - ${formatTime(course.endTime)}`;
+                    eventDetails.textContent = `${formatTime(course.startTime)} - ${formatTime(course.endTime)} • ${course.instructor} •`;
                     
                     // Add edit button
                     const editButton = document.createElement('button');
@@ -466,6 +583,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Update the calendar
             renderWeekView();
+            
+            // Save to localStorage
+            saveTabs();
         }
     }
 
@@ -516,6 +636,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeTab.currentDate = new Date(activeTab.selectedDate);
                 updateTabHeader();
                 renderWeekView();
+                
+                // Save to localStorage
+                saveTabs();
             });
             
             miniCalendarDays.appendChild(dayDiv);
@@ -527,12 +650,18 @@ document.addEventListener('DOMContentLoaded', () => {
         activeTab.currentDate.setDate(activeTab.currentDate.getDate() + direction * 7);
         updateTabHeader();
         renderWeekView();
+        
+        // Save to localStorage
+        saveTabs();
     }
 
     function navigateMiniMonth(direction) {
         const activeTab = getActiveTab();
         activeTab.selectedDate.setMonth(activeTab.selectedDate.getMonth() + direction);
         updateMiniCalendar();
+        
+        // Save to localStorage
+        saveTabs();
     }
 
     function goToToday() {
@@ -542,6 +671,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTabHeader();
         renderWeekView();
         updateMiniCalendar();
+        
+        // Save to localStorage
+        saveTabs();
     }
 
     function openModal() {
@@ -678,6 +810,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update calendar
         renderWeekView();
         
+        // Save to localStorage
+        saveTabs();
+        
         // Close modal
         closeModal();
     }
@@ -687,6 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
     }
 
+    // Updated format time function for consistent time display
     function formatTime(timeString) {
         const [hour, minute] = timeString.split(':').map(Number);
         const period = hour >= 12 ? 'PM' : 'AM';
@@ -888,4 +1024,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return color;
     }
+    
+    // Add window resize handler to ensure calendar remains properly sized
+    window.addEventListener('resize', () => {
+        renderAllTabs();
+    });
+    
+    // Force a re-render after a short delay to ensure everything is sized correctly
+    setTimeout(() => {
+        renderAllTabs();
+    }, 200);
 });
