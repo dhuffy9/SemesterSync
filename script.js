@@ -129,38 +129,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         activeTabId = tabId;
         updateTabHeader();
-        
-        // Update class list based on active tab
-        updateClassList();
-    }
-    
-    function updateClassList() {
-        // Clear the class list
-        classList.innerHTML = '';
-        
-        // Add classes from the active tab
-        const activeTab = getActiveTab();
-        activeTab.courses.forEach(course => {
-            const courseDiv = document.createElement("div");
-            courseDiv.className = 'class-item';
-            courseDiv.dataset.courseId = course.id;
-            
-            const courseDotDiv = document.createElement("div");
-            courseDotDiv.className = 'color-dot';
-            courseDotDiv.style.backgroundColor = course.color;
-            
-            const courseNameSpan = document.createElement("span");
-            courseNameSpan.textContent = course.title;
-            
-            courseDiv.append(courseDotDiv, courseNameSpan);
-            courseDiv.addEventListener('click', () => openEditModal(course));
-            classList.appendChild(courseDiv);
-        });
     }
     
     function createNewTab() {
         // Create new tab data
-        const tabNumber = tabs.length + 1;
+        const tabNumber = parseInt(tabs[tabs.length -1].name.split(" ")[1]) + 1;
         const tabId = `tab-${tabNumber}`;
         const newTab = {
             id: tabId,
@@ -236,7 +209,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderWeekView(tab);
         });
         updateTabHeader();
-        updateClassList();
     }
 
     function renderWeekView(tab = getActiveTab()) {
@@ -253,12 +225,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const dayStart = 8; // 8am
         const dayEnd = 22;  // 10pm
         const dayHeight = 600; // height in pixels
-        const hourHeight = dayHeight / (dayEnd - dayStart); // Calculate pixel height per hour
+        const hourHeight = dayHeight / (dayEnd - dayStart);
         
         for (let hour = dayStart; hour < dayEnd; hour++) {
             const timeDiv = document.createElement('div');
             timeDiv.className = 'time-indicator';
-            timeDiv.style.height = `${hourHeight}px`; // Set exact height to match grid lines
+            timeDiv.style.height = `${hourHeight}px`;
             timeDiv.textContent = formatTime(`${hour}:00`);
             timeIndicators.appendChild(timeDiv);
         }
@@ -292,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             weekdayDiv.appendChild(dayNumberDiv);
             weekDatesHeader.appendChild(weekdayDiv);
             
-            // Create day columns for the week view
+            // Create day columns for the week view with hour grid lines
             const dayColumn = document.createElement('div');
             dayColumn.className = 'day-column';
             dayColumn.dataset.date = formatDate(date);
@@ -302,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let hour = dayStart; hour < dayEnd; hour++) {
                 const hourLine = document.createElement('div');
                 hourLine.className = 'hour-line';
-                hourLine.style.top = `${(hour - dayStart) * hourHeight}px`; // Calculate exact position
+                hourLine.style.top = `${(hour - dayStart) * hourHeight}px`;
                 dayColumn.appendChild(hourLine);
             }
             
@@ -392,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     eventElement.appendChild(eventTitle);
                     eventElement.appendChild(eventDetails);
                     eventElement.appendChild(editButton);
-                    eventElement.addEventListener('click', () => openEditModal(course));
                     dayColumn.appendChild(eventElement);
                 }
             });
@@ -414,8 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             checkbox.checked = course.days.includes(checkbox.value);
         });
         
-        // Change modal title and button text
-        document.getElementById('modal-title').textContent = 'Edit Course';
+        // Change form behavior to update instead of create
         const submitBtn = document.getElementById('submit-btn');
         submitBtn.textContent = 'Update Course';
         
@@ -453,9 +423,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // Remove the course from the array
             activeTab.courses.splice(courseIndex, 1);
             
-            // Update the calendar and class list
+            // Remove the course from the class list
+            const courseElement = document.querySelector(`.class-item[data-course-id="${courseId}"]`);
+            if (courseElement) {
+                courseElement.remove();
+            }
+            
+            // Update the calendar
             renderWeekView();
-            updateClassList();
         }
     }
 
@@ -545,7 +520,6 @@ document.addEventListener('DOMContentLoaded', () => {
         hideErrorMessage();
         
         // Reset form to create mode
-        document.getElementById('modal-title').textContent = 'Add Course';
         const submitBtn = document.getElementById('submit-btn');
         submitBtn.textContent = 'Add Course';
         courseForm.removeAttribute('data-editing-course-id');
@@ -630,15 +604,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const courseIndex = activeTab.courses.findIndex(course => course.id === newCourse.id);
             if (courseIndex !== -1) {
                 activeTab.courses[courseIndex] = newCourse;
+                
+                // Update class list item if it exists
+                const courseElement = document.querySelector(`.class-item[data-course-id="${newCourse.id}"]`);
+                if (courseElement) {
+                    const colorDot = courseElement.querySelector('.color-dot');
+                    const titleSpan = courseElement.querySelector('span');
+                    if (colorDot) colorDot.style.backgroundColor = color;
+                    if (titleSpan) titleSpan.textContent = title;
+                }
             }
         } else {
             // Add new course to active tab
             activeTab.courses.push(newCourse);
+            
+            // Create new course div in class list
+            const courseDiv = document.createElement("div");
+            courseDiv.className = 'class-item';
+            courseDiv.dataset.courseId = newCourse.id;
+            
+            const courseDotDiv = document.createElement("div");
+            courseDotDiv.className = 'color-dot';
+            courseDotDiv.style.backgroundColor = color;
+            
+            const courseNameSpan = document.createElement("span");
+            courseNameSpan.textContent = title;
+            
+            courseDiv.append(courseDotDiv, courseNameSpan);
+            classList.appendChild(courseDiv);
         }
         
-        // Update calendar and class list
+        // Update calendar
         renderWeekView();
-        updateClassList();
         
         // Close modal
         closeModal();
