@@ -56,6 +56,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Search functionality
+    const searchInput = document.getElementById('class-search');
+    const searchResults = document.getElementById('search-results');
+    
+    // Real-time search as user types
+    searchInput.addEventListener('input', handleSearchInput);
+    
+    // Also keep Enter key functionality
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleSearchInput();
+        }
+    });
+    
+    // Clear search results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchResults.contains(e.target) && e.target !== searchInput) {
+            searchResults.innerHTML = '';
+        }
+    });
+    
     // Tab handling
     scheduleTabs.addEventListener('click', (event) => {
         // Check if we clicked on a tab or its child elements
@@ -511,7 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openModal() {
         hideErrorMessage();
-        courseModal.style.display = 'block';
+        courseModal.style.display = 'flex';
     }
 
     function closeModal() {
@@ -651,5 +672,200 @@ document.addEventListener('DOMContentLoaded', () => {
         const period = hour >= 12 ? 'PM' : 'AM';
         const displayHour = hour % 12 || 12; // Convert 0 to 12 for 12 AM
         return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
+    }
+
+    // New functions for class search
+    async function getData(type) {
+        const url = type;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(error.message);
+            return null;
+        }
+    }
+
+    async function searchClasses(searchTerm) {
+        try {
+            // Pass search term directly to the endpoint like your original getData function
+            const response = await fetch(`/api/classes`);
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Filter results on the client side based on search term
+            if (Array.isArray(data)) {
+                return data.filter(course => {
+                    return (
+                        (course.Course && course.Course.toLowerCase().includes(searchTerm.toLowerCase())) || 
+                        (course['Course Title'] && course['Course Title'].toLowerCase().includes(searchTerm.toLowerCase()))
+                    );
+                });
+            } else if (typeof data === 'object' && data !== null) {
+                // If single object was returned
+                const matches = 
+                    (data.Course && data.Course.toLowerCase().includes(searchTerm.toLowerCase())) || 
+                    (data['Course Title'] && data['Course Title'].toLowerCase().includes(searchTerm.toLowerCase()));
+                
+                return matches ? [data] : [];
+            }
+            
+            return [];
+        } catch (error) {
+            console.error('Error searching for classes:', error.message);
+            return [];
+        }
+    }
+
+    function handleSearchInput() {
+        const searchTerm = document.getElementById('class-search').value.trim();
+        const searchResults = document.getElementById('search-results');
+        
+        if (searchTerm.length < 2) {
+            searchResults.innerHTML = '';
+            return;
+        }
+        
+        // Debounce the search to prevent too many rapid requests
+        clearTimeout(window.searchTimeout);
+        window.searchTimeout = setTimeout(async () => {
+            searchResults.innerHTML = '<div class="loading">Searching...</div>';
+            const results = await searchClasses(searchTerm);
+            displaySearchResults(results, searchResults);
+        }, 300); // 300ms debounce
+    }
+
+    function displaySearchResults(results, container) {
+        container.innerHTML = '';
+        
+        if (!results || results.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'no-results';
+            noResults.textContent = 'No classes found';
+            container.appendChild(noResults);
+            return;
+        }
+        
+        results.forEach(classData => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'search-result-item';
+            resultItem.innerHTML = `
+                <div class="result-course">${classData.Course}: ${classData['Course Title']}</div>
+                <div class="result-details">
+                    <span>${classData.Instructor || 'TBD'}</span>
+                    <span>${classData.Schedule || 'Schedule TBD'}</span>
+                    <span>${classData['Avail Seats:'] || ''}</span>
+                </div>
+            `;
+            
+            resultItem.addEventListener('click', () => {
+                populateFormWithClass(classData);
+                container.innerHTML = ''; // Clear results after selection
+            });
+            
+            container.appendChild(resultItem);
+        });
+    }
+
+    function populateFormWithClass(classData) {
+        // Populate the form fields with the class data
+        document.getElementById('course-num').value = classData.Course || '';
+        document.getElementById('course-title').value = classData['Course Title'] || '';
+        document.getElementById('instructor').value = classData.Instructor || '';
+
+        // Parse and set schedule (days and times)
+        if (classData.Schedule) {
+            // Match day codes (M, T, W, R, F, S) followed by time ranges
+            const schedulePattern = /([MTWRFSU]+)\s+(\d+:\d+(?::\d+)?\s*[AP]M)\s*-\s*(\d+:\d+(?::\d+)?\s*[AP]M)/i;
+            const match = classData.Schedule.match(schedulePattern);
+            
+            if (match) {
+                const dayCode = match[1];
+                const startTime = match[2];
+                const endTime = match[3];
+                
+                // Convert day codes to full day names
+                const dayMap = {
+                    'M': 'Monday',
+                    'T': 'Tuesday',
+                    'W': 'Wednesday',
+                    'R': 'Thursday',
+                    'F': 'Friday',
+                    'S': 'Saturday',
+                    'U': 'Sunday'
+                };
+                
+                // Clear all checkboxes first
+                document.querySelectorAll('input[name="days"]').forEach(cb => cb.checked = false);
+                
+                // Check the appropriate days
+                for (let i = 0; i < dayCode.length; i++) {
+                    const dayName = dayMap[dayCode[i]];
+                    if (dayName) {
+                        const checkbox = document.querySelector(`input[name="days"][value="${dayName}"]`);
+                        if (checkbox) checkbox.checked = true;
+                    }
+                }
+                
+                try {
+                    // Convert times to 24-hour format for input fields
+                    document.getElementById('start-time').value = convertTo24Hour(startTime);
+                    document.getElementById('end-time').value = convertTo24Hour(endTime);
+                } catch (error) {
+                    console.error('Error converting time:', error);
+                    // If time conversion fails, leave the fields empty
+                    document.getElementById('start-time').value = '';
+                    document.getElementById('end-time').value = '';
+                }
+            }
+        }
+        
+        // Set a random color if not specified
+        if (!document.getElementById('color').value) {
+            const randomColor = getRandomColor();
+            document.getElementById('color').value = randomColor;
+        }
+    }
+
+    function convertTo24Hour(time12h) {
+        // Convert 12-hour format to 24-hour format for time input
+        // Handle different formats of time input
+        if (!time12h) return '';
+        
+        // Extract the time and period (AM/PM)
+        const timeParts = time12h.match(/(\d+):(\d+)(?::(\d+))?\s*([AP]M)?/i);
+        
+        if (!timeParts) return '';
+        
+        let hours = parseInt(timeParts[1], 10);
+        const minutes = timeParts[2];
+        const period = timeParts[4] || 'AM'; // Default to AM if not specified
+        
+        // Convert hours based on period (AM/PM)
+        if (period.toUpperCase() === 'PM' && hours < 12) {
+            hours += 12;
+        } else if (period.toUpperCase() === 'AM' && hours === 12) {
+            hours = 0;
+        }
+        
+        // Format to HH:mm
+        return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    }
+
+    function getRandomColor() {
+        // Generate a random color for the course
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
     }
 });

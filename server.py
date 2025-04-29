@@ -1,7 +1,31 @@
+from flask import Flask, send_from_directory, jsonify
+import os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
+
+app = Flask(__name__, static_folder='public')
+
+# Serve static files from the public directory
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_static(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
+# API endpoint to get class data
+@app.route('/api/classes')
+def get_classes():
+    # Find the latest CSV file
+    files = [f for f in os.listdir('.') if f.startswith('pct_classes_') and f.endswith('.csv')]
+    if not files:
+        return jsonify({"error": "No class data found"}), 404
+    latest_file = max(files, key=os.path.getctime)
+    df = pd.read_csv(latest_file)
+    return df.to_json(orient='records')
 
 # Simple script to extract class data from PCT course schedule
 print(f"Starting class extraction at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -122,3 +146,6 @@ else:
     with open("response.html", "w", encoding="utf-8") as f:
         f.write(response.text)
     print("Response page saved to response.html for inspection.")
+
+if __name__ == '__main__':
+    app.run(debug=True)
