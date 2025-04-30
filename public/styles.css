@@ -322,7 +322,7 @@ body {
     flex: 1;
     background-color: white;
     border-radius: 0 0 8px 8px;
-    overflow: hidden;
+    overflow: scroll;
 }
 
 .time-indicators {
@@ -348,7 +348,7 @@ body {
 
 .day-column {
     position: relative;
-    border-right: 1px solid #eee;
+    border-right: 1px solid #fff;
     height: 840px; /* INCREASED from 600px to 840px (60px per hour × 14 hours) */
 }
 
@@ -360,7 +360,7 @@ body {
     position: absolute;
     width: 100%;
     height: 1px;
-    background-color: #f0f0f0;
+    background-color: #fff;
 }
 
 .event {

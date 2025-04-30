@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-time').addEventListener('change', validateTimes);
     document.getElementById('end-time').addEventListener('change', validateTimes);
 
+
     function initCalendar() {
         // Get all tabs from localStorage if available
         const savedTabs = localStorage.getItem('semesterSyncTabs');
@@ -380,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let hour = dayStart; hour < dayEnd; hour++) {
             const timeDiv = document.createElement('div');
             timeDiv.className = 'time-indicator';
-            timeDiv.style.height = `${hourHeight}px`;
+            timeDiv.style.height = `${hourHeight + 10}px`; // added 10 for padding 
             timeDiv.textContent = formatTime(`${hour}:00`);
             timeIndicators.appendChild(timeDiv);
         }
