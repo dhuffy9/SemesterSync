@@ -52,6 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-time').addEventListener('change', validateTimes);
     document.getElementById('end-time').addEventListener('change', validateTimes);
 
+    document.querySelector('[data-tab-id="tab-1"]').addEventListener('click', (event) => {
+        setActiveTab(event.target.dataset.tabId)
+    })
+
 
     function initCalendar() {
         // Get all tabs from localStorage if available
@@ -639,7 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderWeekView();
                 
                 // Save to localStorage
-                saveTabs();
+                //saveTabs(); Not need (For a different features)
             });
             
             miniCalendarDays.appendChild(dayDiv);
@@ -653,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderWeekView();
         
         // Save to localStorage
-        saveTabs();
+        //saveTabs();
     }
 
     function navigateMiniMonth(direction) {
@@ -662,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMiniCalendar();
         
         // Save to localStorage
-        saveTabs();
+        //saveTabs();
     }
 
     function goToToday() {
@@ -674,7 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMiniCalendar();
         
         // Save to localStorage
-        saveTabs();
+        //saveTabs();
     }
 
     function openModal() {
@@ -984,8 +988,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Set a random color if not specified
-        if (!document.getElementById('color').value) {
+        console.log(typeof document.getElementById('color').value )
+        // Set a random color if default
+        if (document.getElementById('color').value == "#4285f4") {
+            console.log("True")
             const randomColor = getRandomColor();
             document.getElementById('color').value = randomColor;
         }
