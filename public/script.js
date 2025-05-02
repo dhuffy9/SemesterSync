@@ -98,12 +98,37 @@ document.addEventListener('DOMContentLoaded', () => {
         setActiveTab(getActiveTab().id);
         renderAllTabs();
         updateMiniCalendar();
+        updateClassList();
         
         // Add class search input event listener
         const searchInput = document.getElementById('class-search');
         if (searchInput) {
             searchInput.addEventListener('input', handleSearchInput);
         }
+    }
+
+    function updateClassList() {
+        // Clear the class list
+        classList.innerHTML = '';
+        
+        // Add classes from the active tab
+        const activeTab = getActiveTab();
+        activeTab.courses.forEach(course => {
+            const courseDiv = document.createElement("div");
+            courseDiv.className = 'class-item';
+            courseDiv.dataset.courseId = course.id;
+            
+            const courseDotDiv = document.createElement("div");
+            courseDotDiv.className = 'color-dot';
+            courseDotDiv.style.backgroundColor = course.color;
+            
+            const courseNameSpan = document.createElement("span");
+            courseNameSpan.textContent = course.title;
+            
+            courseDiv.append(courseDotDiv, courseNameSpan);
+            courseDiv.addEventListener('click', () => openEditModal(course));
+            classList.appendChild(courseDiv);
+        });
     }
 
     function setupClassListItemListeners() {
@@ -262,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateTabHeader();
             renderWeekView();
             updateMiniCalendar();
+            updateClassList();
             
             // Save active tab to localStorage
             localStorage.setItem('semesterSyncActiveTabId', tabId);
