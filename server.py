@@ -148,4 +148,5 @@ else:
     print("Response page saved to response.html for inspection.")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # host 0.0.0.0 is allows access from any device on the network 
+    app.run(host='0.0.0.0', port=8000)
