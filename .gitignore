@@ -11,3 +11,8 @@ class_response_*.html
 # Ignore error and response debugging files
 error_page.html
 response.html
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
