@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructor Search - SemesterSync</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">SemesterSync</div>
+            <button class="create-btn" onclick="window.location.href='index.html'">
+                <span>←</span>
+                <span>Back to Calendar</span>
+            </button>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h2>Instructor Search</h2>
+                <p>Search for instructors to see their course schedules and availability</p>
+            </div>
+
+            <div class="search-section">
+                <div class="search-container">
+                    <input type="text" id="instructor-search" placeholder="Search by instructor name (e.g., Sarah Wilson)">
+                    <div id="search-status" class="search-status"></div>
+                </div>
+            </div>
+
+            <div id="instructor-results" class="instructor-results">
+                <!-- Results will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="instructor-search.js"></script>
+</body>
+</html>
