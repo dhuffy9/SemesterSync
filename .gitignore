@@ -1,2 +1,13 @@
 # Ignore all CSV files
 *.csv
+
+# Ignore individual class response directories and files
+individual_class_responses_*/
+class_response_*.html
+
+# Ignore log files
+*.log
+
+# Ignore error and response debugging files
+error_page.html
+response.html
