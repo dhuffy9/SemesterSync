@@ -1,2 +1,9 @@
 # Ignore all CSV files
 *.csv
+
+# Ignore class response files
+class_responses/
+*.html
+
+# Ignore log files
+*.log
