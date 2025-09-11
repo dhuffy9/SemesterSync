@@ -95,7 +95,7 @@ if soup.find("span", {"id": "lblMessage"}):
 
 # Try to find the table with class data
 class_table = None
-for table_id in ["CourseList", "gvCourseList", "tblCourses"]:
+for table_id in ["CourseList", "gvCourseList", "tblCourses"]: # CourseList
     class_table = soup.find("table", {"id": table_id})
     if class_table:
         break
@@ -113,21 +113,29 @@ if class_table:
     print("Found class data table. Extracting information...")
     
     # Get headers
-    headers_row = class_table.find_all("tr")[0]
-    headers = [th.get_text(strip=True) for th in headers_row.find_all(["th", "td"])]
+    headers_row = class_table.find_all("tr")[0] # all classes but get the first one.
+   
+   # Clean headers 
+    headers = [th.get_text(strip=True) for th in headers_row.find_all(["th", "td"])] # th 
     
+
     # Get data rows
     for row in class_table.find_all("tr")[1:]:  # Skip header row
-        cells = row.find_all("td")
+        cells = row.find_all("td") # get raw class data
         if cells:
             class_data = [cell.get_text(strip=True) for cell in cells]
+            
+            #print(class_data)
             
             # Create a dictionary for this class
             class_dict = {}
             for i, value in enumerate(class_data):
                 if i < len(headers):
                     header = headers[i] if headers[i] else f"Column{i+1}"
-                    class_dict[header] = value
+                    if header == headers[-1]: # when Course Schedule get the href of the coruse 
+                        class_dict[header] = cells[-1].find_all("a")[0].get("href")
+                    else:
+                        class_dict[header] = value
                 else:
                     class_dict[f"Column{i+1}"] = value
             
