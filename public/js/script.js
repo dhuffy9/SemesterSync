@@ -113,6 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear the class list
         classList.innerHTML = '';
         
+        // Clear total Creadits  
+        totalCreadits.innerText = '';
+        
         // Add classes from the active tab
         const activeTab = getActiveTab();
         activeTab.courses.forEach(course => {
@@ -131,6 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
             courseDiv.addEventListener('click', () => openEditModal(course));
             classList.appendChild(courseDiv);
         });
+
+        // set totol creadits to ative tab
+        totalCreadits.innerText = activeTab.totalCreadits;
     }
 
     function setupClassListItemListeners() {
@@ -608,6 +614,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const courseIndex = activeTab.courses.findIndex(course => course.id === courseId);
         
         if (courseIndex !== -1) {
+            // Remove course credits from total credits
+            activeTab.totalCreadits -= activeTab.courses[courseIndex].credits
+
             // Remove the course from the array
             activeTab.courses.splice(courseIndex, 1);
             
@@ -616,7 +625,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (courseElement) {
                 courseElement.remove();
             }
-            
+
+            // Update total credits base on active tab
+            totalCreadits.innerText = activeTab.totalCreadits;
+
             // Update the calendar
             renderWeekView();
             
