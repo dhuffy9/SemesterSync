@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
             name: 'Schedule 1',
             currentDate: new Date(),
             selectedDate: new Date(),
-            courses: []
+            courses: [],
+            totalCreadits: 0
         }
     ];
     
@@ -22,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextWeekBtn = document.getElementById('next-week');
     const currentMonthYearElement = document.getElementById('current-month-year');
     const classList = document.getElementById("class-list");
+    const totalCreadits = document.getElementById('total-credits');
     const scheduleTabs = document.getElementById('schedule-tabs');
     const addTabBtn = document.getElementById('add-tab');
     const calendarsContainer = document.getElementById('calendars-container');
@@ -184,7 +186,8 @@ document.addEventListener('DOMContentLoaded', () => {
             name: `Schedule ${tabs.length + 1}`,
             currentDate: new Date(),
             selectedDate: new Date(),
-            courses: []
+            courses: [],
+            totalCreadits: 0
         };
         
         // Add to tabs array
@@ -555,10 +558,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to open the edit modal for a course
     function openEditModal(course) {
+        console.log(course)
         // Set form values to the course values
         document.getElementById('course-num').value = course.courseNum;
         document.getElementById('course-title').value = course.title;
         document.getElementById('instructor').value = course.instructor;
+        document.getElementById('credits').value = course.credits;
         document.getElementById('start-time').value = course.startTime;
         document.getElementById('end-time').value = course.endTime;
         document.getElementById('color').value = course.color;
@@ -710,6 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function openModal() {
         hideErrorMessage();
         courseModal.style.display = 'flex';
+        document.getElementById('class-search').select();
     }
 
     function closeModal() {
@@ -764,11 +770,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const courseNum = document.getElementById('course-num').value;
         const title = document.getElementById('course-title').value;
         const instructor = document.getElementById('instructor').value;
+        const credits = parseInt(document.getElementById('credits').value);
         const dayCheckboxes = document.querySelectorAll('input[name="days"]:checked');
         const selectedDays = Array.from(dayCheckboxes).map(checkbox => checkbox.value);
         const startTime = document.getElementById('start-time').value;
         const endTime = document.getElementById('end-time').value;
         const color = document.getElementById('color').value;
+
         
         if (selectedDays.length === 0) {
             showErrorMessage("Please select at least one day");
@@ -781,6 +789,7 @@ document.addEventListener('DOMContentLoaded', () => {
             courseNum,
             title,
             instructor,
+            credits,
             days: selectedDays,
             startTime,
             endTime,
@@ -788,6 +797,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const activeTab = getActiveTab();
+        activeTab.totalCreadits += credits;
+
         const isEditing = courseForm.dataset.editingCourseId;
         
         // Check for conflicts (exclude self when editing)
@@ -838,6 +849,8 @@ document.addEventListener('DOMContentLoaded', () => {
             classList.appendChild(courseDiv);
         }
         
+
+        totalCreadits.innerText = activeTab.totalCreadits
         // Update calendar
         renderWeekView();
         
@@ -846,6 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Close modal
         closeModal();
+        console.log(activeTab)
     }
 
     // Utility functions
@@ -861,22 +875,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
     }
 
-    // New functions for class search
-    async function getData(type) {
-        const url = type;
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Response status: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error(error.message);
-            return null;
-        }
-    }
-
     async function searchClasses(searchTerm) {
         try {
             // Pass search term directly to the endpoint like your original getData function
@@ -886,16 +884,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const data = await response.json();
+
+            console.log("date type: ", typeof data);
             
             // Filter results on the client side based on search term
             if (Array.isArray(data)) {
+                console.log("data is an array");
                 return data.filter(course => {
                     return (
                         (course.Course && course.Course.toLowerCase().includes(searchTerm.toLowerCase())) || 
                         (course['Course Title'] && course['Course Title'].toLowerCase().includes(searchTerm.toLowerCase()))
-                    );
+                    );   // if the search term is in the course number or course title, return the course
+                
                 });
             } else if (typeof data === 'object' && data !== null) {
+                console.log("data is an object");
                 // If single object was returned
                 const matches = 
                     (data.Course && data.Course.toLowerCase().includes(searchTerm.toLowerCase())) || 
@@ -962,6 +965,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function populateFormWithClass(classData) {
+        console.log(classData)
         // Populate the form fields with the class data
         document.getElementById('course-num').value = classData.Course || '';
         document.getElementById('course-title').value = classData['Course Title'] || '';
@@ -1014,13 +1018,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        console.log(typeof document.getElementById('color').value )
+        if(classData.Credits){
+            document.getElementById('credits').value = classData.Credits;
+        }
+        // Set the color to blue as default
+        document.getElementById('color').value == "#4285f4";
+         
+        /*
         // Set a random color if default
         if (document.getElementById('color').value == "#4285f4") {
-            console.log("True")
             const randomColor = getRandomColor();
             document.getElementById('color').value = randomColor;
         }
+        */
     }
 
     function convertTo24Hour(time12h) {
@@ -1068,3 +1078,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAllTabs();
     }, 200);
 });
+
+
+
+//<a id="lnkbtnClickForDetails" href="javascript:__doPostBack('_ctl0$PlaceHolderMain$_ctl0$CourseList$_ctl28$lnkbtnClickForDetails','')">Click for Details</a>

@@ -1,0 +1,167 @@
+:root{
+    --modal-width: 92%;
+    --modal-max-width: 720px;
+    --overlay-bg: rgba(0,0,0,0.5);
+    --modal-bg: #ffffff;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-contrast: #ffffff;
+    --radius: 12px;
+    --shadow: 0 12px 36px rgba(15,23,42,0.25);
+    --gap: 14px;
+    --text: #0f172a;
+    --small-text: 0.88rem;
+    --base-text: 1rem;
+  }
+  
+  /* Utility */
+  .hidden { display: none; }
+  
+  /* Overlay */
+  #disclaimer-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    z-index: 9998;
+    backdrop-filter: blur(2px);
+  }
+  
+  /* Modal container */
+  #disclaimer-modal {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: var(--modal-width);
+    max-width: var(--modal-max-width);
+    z-index: 9999;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    color: var(--text);
+    outline: none;
+  }
+  
+  /* Card content */
+  .disclaimer-content {
+    background: var(--modal-bg);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+  }
+  
+  /* Header */
+  .disclaimer-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  #disclaimer-title {
+    margin: 0;
+    font-size: 1.125rem;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+  #disclaimer-title .tag {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    background: #f1f5f9;
+    color: var(--muted);
+    border-radius: 999px;
+    vertical-align: middle;
+  }
+  
+  /* Body text */
+  #disclaimer-desc p {
+    margin: 0;
+    font-size: var(--base-text);
+    line-height: 1.45;
+  }
+  .disclaimer-content h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .disclaimer-content ol {
+    margin: 6px 0 0 20px;
+    padding: 0;
+    font-size: var(--base-text);
+    line-height: 1.5;
+  }
+  .disclaimer-content .small {
+    margin-top: 6px;
+    font-size: var(--small-text);
+    color: var(--muted);
+  }
+  
+  /* Controls row */
+  .disclaimer-controls {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+  }
+  
+  /* checkbox label */
+  .disclaimer-controls label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--small-text);
+    color: var(--muted);
+  }
+  .disclaimer-controls input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  
+  /* Buttons */
+  .controls-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .button {
+    appearance: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  #disclaimer-close {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid #e6e9ee;
+  }
+  #disclaimer-action {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    box-shadow: 0 6px 18px rgba(37,99,235,0.12);
+  }
+  
+  /* Focus styles */
+  #disclaimer-modal:focus-within {
+    box-shadow: 0 16px 48px rgba(37,99,235,0.12);
+  }
+  .button:focus, .disclaimer-controls input:focus {
+    outline: 3px solid rgba(37,99,235,0.18);
+    outline-offset: 2px;
+  }
+  
+  /* Responsive tweaks */
+  @media (max-width: 420px) {
+    .disclaimer-content { padding: 16px; }
+    #disclaimer-title { font-size: 1rem; }
+    .disclaimer-content ol { font-size: 0.95rem; }
+  }

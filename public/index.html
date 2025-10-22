@@ -4,9 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SemesterSync</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
+    <link rel="stylesheet" href="./css/popup.css">
+    <div id="disclaimer-overlay" class="hidden" aria-hidden="true"></div>
+
+    <div id="disclaimer-modal" class="hidden" role="dialog" aria-labelledby="disclaimer-title" aria-describedby="disclaimer-desc" tabindex="-1">
+    <div class="disclaimer-content">
+        <h2 id="disclaimer-title">Important notice</h2>
+        <div id="disclaimer-desc">
+        <p><strong>This website is not affiliated with the school.</strong></p>
+        <p>If you find bugs or want new features, please email: <a href="mailto:djh61@pct.edu">djh61@pct.edu</a></p>
+
+        
+    <h3>How to add a course:</h3>
+      <ol>
+        <li>Click the <strong>New Course</strong> button at the top-left of the site (the <strong>+</strong> icon is the same button).</li>
+        <li>Search the course by course number or class name; doing this autofills the rest of the inputs.</li>
+        <li>To add a course manually, fill the fields after clicking <strong>New Course</strong>:
+          <ol type="b">
+            <li>Course Number</li>
+            <li>Course Title</li>
+            <li>Instructor</li>
+            <li>Credits</li>
+            <li>Days (Sunday — Saturday checkboxes)</li>
+            <li>Start Time (HH:MM AM/PM)</li>
+            <li>End Time (HH:MM AM/PM)</li>
+          </ol>
+        </li>
+        <li>Click <strong>Add Course</strong> to save the course.</li>
+      </ol>
+
+        <p class="small">If something doesn't save, try these steps: reload the page, clear your browser cache, ensure your browser allows localStorage/cookies, or try a different browser. For help, email djh61@pct.edu — include the steps to reproduce the issue.</p>
+        </div>
+
+        <div class="disclaimer-controls">
+        <label><input type="checkbox" id="disclaimer-no-show"> Don't show this again</label>
+        <button id="disclaimer-close" type="button" aria-label="Close notice">Close</button>
+        </div>
+    </div>
+    </div>
+
+    <script src="./js/popup.js"></script>
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar">
@@ -35,6 +75,7 @@
                 <div id="class-list">
                     <!-- Class items will be added dynamically -->
                 </div>
+                <h3>Total Credits: <span id="total-credits"></span></h3>
             </div>
         </div>
 
@@ -78,7 +119,7 @@
     </div>
 
     <!-- Modal for adding new courses -->
-    <div class="modal" id="course-modal">
+    <div class="modal" id="course-modal" style="display: none;">
         <div class="modal-content">
             <span class="close">&times;</span>
             <h2 id="modal-title">Add Course</h2>
@@ -100,6 +141,10 @@
                 <div class="form-group">
                     <label for="instructor">Instructor:</label>
                     <input type="text" id="instructor" required>
+                </div>
+                <div class="form-group">
+                    <label for="credits">Credits:</label>
+                    <input type="number" id="credits"  style="width: 80px;" required>
                 </div>
                 <div class="form-group">
                     <label>Days:</label>
@@ -134,6 +179,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="./js/script.js"></script>
 </body>
 </html>

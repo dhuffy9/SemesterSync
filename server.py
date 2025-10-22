@@ -7,6 +7,9 @@ from datetime import datetime
 
 app = Flask(__name__, static_folder='public')
 
+
+DEBUG = False
+
 # Serve static files from the public directory
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -19,8 +22,10 @@ def serve_static(path):
 # API endpoint to get class data
 @app.route('/api/classes')
 def get_classes():
+    print("Getting classes base on the latest CSV file...")
     # Find the latest CSV file
     files = [f for f in os.listdir('.') if f.startswith('pct_classes_') and f.endswith('.csv')]
+    print(f"Found {len(files)} files")
     if not files:
         return jsonify({"error": "No class data found"}), 404
     latest_file = max(files, key=os.path.getctime)
@@ -41,9 +46,13 @@ print("Fetching initial page...")
 response = session.get(url)
 soup = BeautifulSoup(response.text, "html.parser")
 
+
 # Extract the required form fields
 viewstate = soup.find("input", {"name": "__VIEWSTATE"})["value"]
 viewstate_generator = soup.find("input", {"name": "__VIEWSTATEGENERATOR"})["value"]
+term_select = soup.find("select", {"id": "_ctl0_PlaceHolderMain__ctl0_cbTerm"}).find("option", {"selected": True})["value"]
+
+print("Term select: ", term_select) 
 
 # Step 2: Create the minimal payload needed
 print("Preparing search request...")
@@ -54,7 +63,7 @@ payload = {
     "__EVENTARGUMENT": "",
     "__LASTFOCUS": "",
     "_ctl0:PlaceHolderMain:_ctl0:cbCampus": "5",
-    "_ctl0:PlaceHolderMain:_ctl0:cbTerm": "1196",
+    "_ctl0:PlaceHolderMain:_ctl0:cbTerm": "1197",  # Spring 2026 is 1197
     "_ctl0:PlaceHolderMain:_ctl0:txtKeyword": "",
     "_ctl0:PlaceHolderMain:_ctl0:chkMo": "on",
     "_ctl0:PlaceHolderMain:_ctl0:chkTu": "on",
@@ -76,10 +85,10 @@ payload = {
 
 # Step 3: Send the search request
 print("Sending search request...")
-headers = {
+request_headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
 }
-response = session.post(url, data=payload, headers=headers)
+response = session.post(url, data=payload, headers=request_headers)
 
 # Step 4: Parse the results
 print("Processing response...")
@@ -97,15 +106,23 @@ if soup.find("span", {"id": "lblMessage"}):
 class_table = None
 for table_id in ["CourseList", "gvCourseList", "tblCourses"]:
     class_table = soup.find("table", {"id": table_id})
+    if DEBUG:
+        if class_table:
+            print(f"Table was found: {class_table}")
+        print("Table wasnt found ")
     if class_table:
         break
 
 # If no table found by ID, look for any large table
 if not class_table:
+    if DEBUG:
+        print("no table found by ID, look for any large table")
     tables = soup.find_all("table")
     if tables:
         # Use the table with the most rows
         class_table = max(tables, key=lambda t: len(t.find_all("tr")))
+        if DEBUG:
+            print(f"Using Table with the most rows: {class_table}")
 
 # Step 5: Extract the data
 classes = []
@@ -113,21 +130,29 @@ if class_table:
     print("Found class data table. Extracting information...")
     
     # Get headers
-    headers_row = class_table.find_all("tr")[0]
-    headers = [th.get_text(strip=True) for th in headers_row.find_all(["th", "td"])]
+    headers_row = class_table.find_all("tr")[0] # all classes but get the first one.
+   
+   # Clean headers 
+    headers = [th.get_text(strip=True) for th in headers_row.find_all(["th", "td"])] # th 
     
+
     # Get data rows
     for row in class_table.find_all("tr")[1:]:  # Skip header row
-        cells = row.find_all("td")
+        cells = row.find_all("td") # get raw class data
         if cells:
             class_data = [cell.get_text(strip=True) for cell in cells]
+            
+            #print(class_data)
             
             # Create a dictionary for this class
             class_dict = {}
             for i, value in enumerate(class_data):
                 if i < len(headers):
                     header = headers[i] if headers[i] else f"Column{i+1}"
-                    class_dict[header] = value
+                    if header == headers[-1]: # when Course Schedule get the href of the coruse 
+                        class_dict[header] = cells[-1].find_all("a")[0].get("href")
+                    else:
+                        class_dict[header] = value
                 else:
                     class_dict[f"Column{i+1}"] = value
             
@@ -146,6 +171,8 @@ else:
     with open("response.html", "w", encoding="utf-8") as f:
         f.write(response.text)
     print("Response page saved to response.html for inspection.")
+
+
 
 if __name__ == '__main__':
     # host 0.0.0.0 is allows access from any device on the network 
