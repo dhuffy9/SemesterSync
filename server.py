@@ -1,12 +1,12 @@
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, request, send_from_directory, jsonify
 import os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
+import uuid
 
 app = Flask(__name__, static_folder='public')
-
 
 DEBUG = False
 
@@ -31,6 +31,28 @@ def get_classes():
     latest_file = max(files, key=os.path.getctime)
     df = pd.read_csv(latest_file)
     return df.to_json(orient='records')
+
+
+shared_schedule = {}
+
+# API endpoint to share shedule
+@app.route('/api/share', methods=['POST'])
+def share():
+    schedule = request.get_json()
+    if not schedule:
+        return jsonify({'error', 'missing schedule'}), 400
+    
+    token = str(uuid.uuid4())
+    shared_schedule[token] = {'schedule' : schedule , 'created_at' : datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    return jsonify({'url': f'/s/{token}'})
+
+
+@app.route('/s/<token>')
+def s(token):
+    schedule = shared_schedule.get(token)
+    if schedule is None:
+        return jsonify({"error": "Token not found"}), 404
+    return jsonify(schedule)
 
 # Simple script to extract class data from PCT course schedule
 print(f"Starting class extraction at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

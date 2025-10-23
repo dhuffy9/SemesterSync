@@ -54,6 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-time').addEventListener('change', validateTimes);
     document.getElementById('end-time').addEventListener('change', validateTimes);
 
+
+    document.getElementById('share-schedule').addEventListener('click', shareSchedule);
+
     document.querySelector('[data-tab-id="tab-1"]').addEventListener('click', (event) => {
         setActiveTab(event.target.dataset.tabId)
     })
@@ -896,8 +899,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const data = await response.json();
-
-            console.log("date type: ", typeof data);
             
             // Filter results on the client side based on search term
             if (Array.isArray(data)) {
@@ -1078,6 +1079,21 @@ document.addEventListener('DOMContentLoaded', () => {
             color += letters[Math.floor(Math.random() * 16)];
         }
         return color;
+    }
+
+    function shareSchedule(){
+        const activeTab = getActiveTab();
+        const courses = activeTab.courses
+
+        fetch('/api/share', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(courses)
+          }).then(response => response.json())
+          .then(data => console.log(data))
+          .catch(error => console.error('Error:', error));
     }
     
     // Add window resize handler to ensure calendar remains properly sized
