@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SemesterSync</title>
-    <link rel="stylesheet" href="./css/styles.css">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <link rel="stylesheet" href="./css/popup.css">
+    <link rel="stylesheet" href="/css/popup.css">
     <div id="disclaimer-overlay" class="hidden" aria-hidden="true"></div>
 
     <div id="disclaimer-modal" class="hidden" role="dialog" aria-labelledby="disclaimer-title" aria-describedby="disclaimer-desc" tabindex="-1">
@@ -46,7 +46,12 @@
     </div>
     </div>
 
-    <script src="./js/popup.js"></script>
+
+    <div id="share-schedule-container" style="display: none;">
+        <h3>Url:<span id="share-schedule-url"></span></h3>
+    </div>
+
+    <script src="/js/popup.js"></script>
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar">
@@ -180,6 +185,6 @@
         </div>
     </div>
 
-    <script src="./js/script.js"></script>
+    <script src="/js/script.js"></script>
 </body>
 </html>

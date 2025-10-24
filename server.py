@@ -1,4 +1,4 @@
-from flask import Flask, request, send_from_directory, jsonify
+from flask import Flask, request, send_from_directory, jsonify, render_template
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -6,7 +6,7 @@ import pandas as pd
 from datetime import datetime
 import uuid
 
-app = Flask(__name__, static_folder='public')
+app = Flask(__name__, static_folder='public', template_folder='public')
 
 DEBUG = False
 
@@ -41,14 +41,23 @@ def share():
     schedule = request.get_json()
     if not schedule:
         return jsonify({'error', 'missing schedule'}), 400
-    
+
     token = str(uuid.uuid4())
     shared_schedule[token] = {'schedule' : schedule , 'created_at' : datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-    return jsonify({'url': f'/s/{token}'})
+    return jsonify({'url': f'{request.host_url}s/{token}'})
 
 
 @app.route('/s/<token>')
 def s(token):
+    schedule = shared_schedule.get(token)
+    if schedule is None:
+        return render_template('404.html'), 404
+    # Render your normal frontend (same as / route)
+    return render_template('index.html', shared_token=token)
+
+
+@app.route('/api/schedule/<token>')
+def get_shared_schedule(token):
     schedule = shared_schedule.get(token)
     if schedule is None:
         return jsonify({"error": "Token not found"}), 404
