@@ -47,8 +47,15 @@
     </div>
 
 
-    <div id="share-schedule-container" style="display: none;">
-        <h3>Url:<span id="share-schedule-url"></span></h3>
+    <div id="share-schedule-modal" class="modal"  style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close">&times;</span>
+            <h2 id="share-schedule-modal-title">Link</h2>
+            <div style="display: flex; width: 100%;">
+                <span id="share-schedule-url" style="border: 2px solid; border-radius: 8px 0px 0px 8px; padding: 8px; flex: 0 0 90%;"></span>
+                <button id="copy-url" style="border: 2px solid; border-left: none;padding: 8px;border-radius: 0px 8px 8px 0px; cursor: pointer;">Copy</button>
+            </div>
+        </div>
     </div>
 
     <script src="/js/popup.js"></script>

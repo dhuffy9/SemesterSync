@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const courseModal = document.getElementById('course-modal');
 
     const addCourseBtn = document.getElementById('addCourseBtn');
-    const closeModalBtn = document.querySelector('.close');
+    const closeModalBtn = document.querySelector('#course-modal .close');
     const courseForm = document.getElementById('course-form');
     const cancelBtn = document.getElementById('cancel-btn');
     const errorMessageDiv = document.getElementById('error-message');
@@ -43,40 +43,99 @@ document.addEventListener('DOMContentLoaded', async () => {
     // If URL is a shared schedule like /s/<token>, fetch it and create a NEW tab
     const pathParts = window.location.pathname.split("/");
     if (pathParts[1] === "s" && pathParts[2]) {
-        const token = pathParts[2];
+        const token = String(pathParts[2]);
+
+        // 1) If the tab already exists in memory, just activate it and stop
+        const inMemory = tabs.find(t => String(t.id) === token);
+        if (inMemory) {
+            setActiveTab(inMemory.id);
+            renderWeekView(inMemory);
+            updateClassList();
+            return;
+        }
+
+        // 2) If not in memory, check persisted tabs and update one if found
+        try {
+            const savedTabs = localStorage.getItem('semesterSyncTabs');
+            if (savedTabs) {
+                const parsedTabs = JSON.parse(savedTabs);
+
+                const saved = parsedTabs.find(t => String(t.id) === token);
+                if (saved) {
+                    // update dates
+                    saved.currentDate = new Date(saved.currentDate);
+                    saved.selectedDate = new Date(saved.selectedDate);
+
+                    // Add to runtime
+                    tabs.push(saved);
+
+                    // Ensure tab DOM exists
+                    const existingTabEl = document.querySelector(`[data-tab-id="${CSS.escape(String(saved.id))}"]`);
+                    if (!existingTabEl) {
+                        const tabElement = createTabElement(saved);
+                        if (addTabBtn && addTabBtn.parentNode) {
+                            addTabBtn.before(tabElement);
+                        } else if (scheduleTabs) {
+                            scheduleTabs.appendChild(tabElement);
+                        }
+                    }
+
+                    // Ensure calendar DOM exists
+                    const existingCalEl = document.querySelector(`[data-calendar-id="${CSS.escape(String(saved.id))}"]`);
+                    if (!existingCalEl && calendarsContainer) {
+                        const calendarTab = createCalendarTab(saved);
+                        calendarsContainer.appendChild(calendarTab);
+                    }
+
+                    setActiveTab(saved.id);
+                    renderWeekView(saved);
+                    updateClassList();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing saved tabs:", e);
+        }
+
+        // 3) Not found anywhere: fetch and create
         try {
             const res = await fetch(`/api/schedule/${token}`);
             const data = await res.json();
 
             if (data.error) {
                 alert("This shared schedule does not exist or has expired.");
-            } else if (data.schedule) {
-                // Create a new tab for the shared schedule instead of replacing tab-1
-                const newTabId = `tab-${Date.now()}`;
-                const totalCreditsFromSchedule = Array.isArray(data.schedule)
-                    ? data.schedule.reduce((sum, c) => sum + (c.credits || 0), 0)
-                    : 0;
+                return;
+            }
 
+            if (data.schedule) {
                 const newTab = {
-                    id: newTabId,
-                    name: `Shared Schedule`,
+                    ...data.schedule,
+                    name: "Shared Schedule",
+                    id: token,
                     currentDate: new Date(),
                     selectedDate: new Date(),
-                    courses: Array.isArray(data.schedule) ? data.schedule : [],
-                    totalCreadits: totalCreditsFromSchedule
                 };
+
+                // Guard against race-condition duplicates
+                if (tabs.some(t => String(t.id) === token)) {
+                    setActiveTab(token);
+                    const existing = tabs.find(t => String(t.id) === token);
+                    if (existing) {
+                        renderWeekView(existing);
+                        updateClassList();
+                    }
+                    return;
+                }
 
                 // Add to tabs array
                 tabs.push(newTab);
 
                 // Create tab DOM element and calendar tab
+                const tabElement = createTabElement(newTab);
                 if (addTabBtn && addTabBtn.parentNode) {
-                    const tabElement = createTabElement(newTab);
                     addTabBtn.before(tabElement);
-                } else {
-                    // If addTabBtn isn't available, create the tab element at the end of scheduleTabs
-                    const tabElement = createTabElement(newTab);
-                    if (scheduleTabs) scheduleTabs.appendChild(tabElement);
+                } else if (scheduleTabs) {
+                    scheduleTabs.appendChild(tabElement);
                 }
 
                 if (calendarsContainer) {
@@ -85,7 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 // Set the new tab active
-                setActiveTab(newTabId);
+                setActiveTab(newTab.id);
 
                 // Render and save
                 renderWeekView(newTab);
@@ -1149,6 +1208,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Share only the active tab (not all tabs)
     async function shareSchedule(){
         const activeTab = getActiveTab();
+        const container = document.getElementById("share-schedule-modal");
+        const urlEl = document.getElementById("share-schedule-url");
+        const closeBtn = document.querySelector('#share-schedule-modal .close');
         // Send only the activeTab object to backend
         try {
             const response = await fetch('/api/share', {
@@ -1160,13 +1222,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             const data = await response.json();
             console.log(data);
-            const container = document.getElementById("share-schedule-container");
-            const urlEl = document.getElementById("share-schedule-url");
-            if (container) container.style.display = "";
+
+            if (container) container.style.display = 'flex';
             if (urlEl) urlEl.innerText = data.url;
+
+
+            document.getElementById("copy-url").addEventListener('click', (e) => {
+                const copyBtn = e.target;
+                navigator.clipboard.writeText(urlEl.textContent).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+                })
+                .catch(err => console.error('Failed to copy:', err));
+            })
         } catch (error) {
             console.error('Error sharing schedule:', error);
         }
+
+        closeBtn.addEventListener('click', () => {container.style.display = 'none'});
     }
     
     // Add window resize handler to ensure calendar remains properly sized
