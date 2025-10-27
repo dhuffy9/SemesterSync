@@ -1,17 +1,19 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Calendar data
+document.addEventListener('DOMContentLoaded', async () => {
+
+    // Calendar data - keep this at the top so it's available before use
     let tabs = [
         {
             id: 'tab-1',
             name: 'Schedule 1',
             currentDate: new Date(),
             selectedDate: new Date(),
-            courses: []
+            courses: [],
+            totalCreadits: 0
         }
     ];
     
     let activeTabId = 'tab-1';
-    
+
     // DOM Elements
     const miniMonthYearElement = document.getElementById('mini-month-year');
     const miniCalendarDays = document.getElementById('mini-calendar-days');
@@ -22,40 +24,165 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextWeekBtn = document.getElementById('next-week');
     const currentMonthYearElement = document.getElementById('current-month-year');
     const classList = document.getElementById("class-list");
+    const totalCreadits = document.getElementById('total-credits');
     const scheduleTabs = document.getElementById('schedule-tabs');
     const addTabBtn = document.getElementById('add-tab');
     const calendarsContainer = document.getElementById('calendars-container');
     const courseModal = document.getElementById('course-modal');
 
     const addCourseBtn = document.getElementById('addCourseBtn');
-    const closeModalBtn = document.querySelector('.close');
+    const closeModalBtn = document.querySelector('#course-modal .close');
     const courseForm = document.getElementById('course-form');
     const cancelBtn = document.getElementById('cancel-btn');
     const errorMessageDiv = document.getElementById('error-message');
-    
-    // Initialize calendar
+
+    // Initialize calendar first (this loads saved tabs if present)
     initCalendar();
     setupClassListItemListeners();
     
+    // If URL is a shared schedule like /s/<token>, fetch it and create a NEW tab
+    const pathParts = window.location.pathname.split("/");
+    if (pathParts[1] === "s" && pathParts[2]) {
+        const token = String(pathParts[2]);
+
+        // 1) If the tab already exists in memory, just activate it and stop
+        const inMemory = tabs.find(t => String(t.id) === token);
+        if (inMemory) {
+            setActiveTab(inMemory.id);
+            renderWeekView(inMemory);
+            updateClassList();
+            return;
+        }
+
+        // 2) If not in memory, check persisted tabs and update one if found
+        try {
+            const savedTabs = localStorage.getItem('semesterSyncTabs');
+            if (savedTabs) {
+                const parsedTabs = JSON.parse(savedTabs);
+
+                const saved = parsedTabs.find(t => String(t.id) === token);
+                if (saved) {
+                    // update dates
+                    saved.currentDate = new Date(saved.currentDate);
+                    saved.selectedDate = new Date(saved.selectedDate);
+
+                    // Add to runtime
+                    tabs.push(saved);
+
+                    // Ensure tab DOM exists
+                    const existingTabEl = document.querySelector(`[data-tab-id="${CSS.escape(String(saved.id))}"]`);
+                    if (!existingTabEl) {
+                        const tabElement = createTabElement(saved);
+                        if (addTabBtn && addTabBtn.parentNode) {
+                            addTabBtn.before(tabElement);
+                        } else if (scheduleTabs) {
+                            scheduleTabs.appendChild(tabElement);
+                        }
+                    }
+
+                    // Ensure calendar DOM exists
+                    const existingCalEl = document.querySelector(`[data-calendar-id="${CSS.escape(String(saved.id))}"]`);
+                    if (!existingCalEl && calendarsContainer) {
+                        const calendarTab = createCalendarTab(saved);
+                        calendarsContainer.appendChild(calendarTab);
+                    }
+
+                    setActiveTab(saved.id);
+                    renderWeekView(saved);
+                    updateClassList();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing saved tabs:", e);
+        }
+
+        // 3) Not found anywhere: fetch and create
+        try {
+            const res = await fetch(`/api/schedule/${token}`);
+            const data = await res.json();
+
+            if (data.error) {
+                alert("This shared schedule does not exist or has expired.");
+                return;
+            }
+
+            if (data.schedule) {
+                const newTab = {
+                    ...data.schedule,
+                    name: "Shared Schedule",
+                    id: token,
+                    currentDate: new Date(),
+                    selectedDate: new Date(),
+                };
+
+                // Guard against race-condition duplicates
+                if (tabs.some(t => String(t.id) === token)) {
+                    setActiveTab(token);
+                    const existing = tabs.find(t => String(t.id) === token);
+                    if (existing) {
+                        renderWeekView(existing);
+                        updateClassList();
+                    }
+                    return;
+                }
+
+                // Add to tabs array
+                tabs.push(newTab);
+
+                // Create tab DOM element and calendar tab
+                const tabElement = createTabElement(newTab);
+                if (addTabBtn && addTabBtn.parentNode) {
+                    addTabBtn.before(tabElement);
+                } else if (scheduleTabs) {
+                    scheduleTabs.appendChild(tabElement);
+                }
+
+                if (calendarsContainer) {
+                    const calendarTab = createCalendarTab(newTab);
+                    calendarsContainer.appendChild(calendarTab);
+                }
+
+                // Set the new tab active
+                setActiveTab(newTab.id);
+
+                // Render and save
+                renderWeekView(newTab);
+                updateClassList();
+                saveTabs();
+                console.log('Loaded shared schedule into new tab:', newTab);
+            }
+        } catch (err) {
+            console.error("Error fetching shared schedule:", err);
+        }
+    }
+
     // Event listeners
-    prevWeekBtn.addEventListener('click', () => navigateWeek(-1));
-    nextWeekBtn.addEventListener('click', () => navigateWeek(1));
-    todayBtn.addEventListener('click', goToToday);
-    prevMonthBtn.addEventListener('click', () => navigateMiniMonth(-1));
-    nextMonthBtn.addEventListener('click', () => navigateMiniMonth(1));
-    addTabBtn.addEventListener('click', createNewTab);
-    addCourseBtn.addEventListener('click', openModal);
-    closeModalBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
-    courseForm.addEventListener('submit', saveCourse);
+    if (prevWeekBtn) prevWeekBtn.addEventListener('click', () => navigateWeek(-1));
+    if (nextWeekBtn) nextWeekBtn.addEventListener('click', () => navigateWeek(1));
+    if (todayBtn) todayBtn.addEventListener('click', goToToday);
+    if (prevMonthBtn) prevMonthBtn.addEventListener('click', () => navigateMiniMonth(-1));
+    if (nextMonthBtn) nextMonthBtn.addEventListener('click', () => navigateMiniMonth(1));
+    if (addTabBtn) addTabBtn.addEventListener('click', createNewTab);
+    if (addCourseBtn) addCourseBtn.addEventListener('click', openModal);
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    if (courseForm) courseForm.addEventListener('submit', saveCourse);
 
-    document.getElementById('start-time').addEventListener('change', validateTimes);
-    document.getElementById('end-time').addEventListener('change', validateTimes);
+    const startTimeElem = document.getElementById('start-time');
+    const endTimeElem = document.getElementById('end-time');
+    if (startTimeElem) startTimeElem.addEventListener('change', validateTimes);
+    if (endTimeElem) endTimeElem.addEventListener('change', validateTimes);
 
-    document.querySelector('[data-tab-id="tab-1"]').addEventListener('click', (event) => {
-        setActiveTab(event.target.dataset.tabId)
-    })
+    const shareScheduleBtn = document.getElementById('share-schedule');
+    if (shareScheduleBtn) shareScheduleBtn.addEventListener('click', shareSchedule);
 
+    const tab1El = document.querySelector('[data-tab-id="tab-1"]');
+    if (tab1El) {
+        tab1El.addEventListener('click', (event) => {
+            setActiveTab(event.target.dataset.tabId)
+        });
+    }
 
     function initCalendar() {
         // Get all tabs from localStorage if available
@@ -80,17 +207,17 @@ document.addEventListener('DOMContentLoaded', () => {
             activeTabId = savedActiveTabId;
         }
 
-        // Create tab elements
+        // Create tab elements (skip tab-1 creation if it's the default and already in DOM)
         tabs.forEach(tab => {
             if (tab.id !== 'tab-1') {
                 // Create tab element if it doesn't exist
                 const tabElement = createTabElement(tab);
-                addTabBtn.before(tabElement);
+                if (addTabBtn && addTabBtn.parentNode) addTabBtn.before(tabElement);
 
                 // Create calendar tab for this tab if it doesn't exist
                 if (!document.getElementById(tab.id)) {
                     const calendarTab = createCalendarTab(tab);
-                    calendarsContainer.appendChild(calendarTab);
+                    if (calendarsContainer) calendarsContainer.appendChild(calendarTab);
                 }
             }
         });
@@ -109,7 +236,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateClassList() {
         // Clear the class list
-        classList.innerHTML = '';
+        if (classList) classList.innerHTML = '';
+        
+        // Clear total Creadits  
+        if (totalCreadits) totalCreadits.innerText = '';
         
         // Add classes from the active tab
         const activeTab = getActiveTab();
@@ -127,8 +257,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             courseDiv.append(courseDotDiv, courseNameSpan);
             courseDiv.addEventListener('click', () => openEditModal(course));
-            classList.appendChild(courseDiv);
+            if (classList) classList.appendChild(courseDiv);
         });
+
+        // set totol creadits to ative tab
+        if (totalCreadits) totalCreadits.innerText = activeTab.totalCreadits;
     }
 
     function setupClassListItemListeners() {
@@ -161,11 +294,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function showErrorMessage(message) {
+        if (!errorMessageDiv) return;
         errorMessageDiv.textContent = message;
         errorMessageDiv.classList.add('show');
     }
     
     function hideErrorMessage() {
+        if (!errorMessageDiv) return;
         errorMessageDiv.textContent = '';
         errorMessageDiv.classList.remove('show');
     }
@@ -184,7 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
             name: `Schedule ${tabs.length + 1}`,
             currentDate: new Date(),
             selectedDate: new Date(),
-            courses: []
+            courses: [],
+            totalCreadits: 0
         };
         
         // Add to tabs array
@@ -192,11 +328,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Create tab element in DOM
         const tabElement = createTabElement(newTab);
-        addTabBtn.before(tabElement);
+        if (addTabBtn && addTabBtn.parentNode) addTabBtn.before(tabElement);
         
         // Create calendar tab for this tab
         const calendarTab = createCalendarTab(newTab);
-        calendarsContainer.appendChild(calendarTab);
+        if (calendarsContainer) calendarsContainer.appendChild(calendarTab);
         
         // Set as active tab
         setActiveTab(newTabId);
@@ -316,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (calendarTab) calendarTab.remove();
         
         // If removing active tab, set a different tab as active
-        if (isRemovingActiveTab) {
+        if (isRemovingActiveTab && tabs.length) {
             setActiveTab(tabs[0].id);
         }
         
@@ -374,7 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update month and year in header
         const options = { year: 'numeric', month: 'long' };
-        currentMonthYearElement.textContent = new Intl.DateTimeFormat('en-US', options).format(activeTab.currentDate);
+        if (currentMonthYearElement) currentMonthYearElement.textContent = new Intl.DateTimeFormat('en-US', options).format(activeTab.currentDate);
     }
 
     function saveTabs() {
@@ -396,6 +532,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const weekDatesHeader = document.getElementById(`week-dates-${tab.id}`);
         const weekView = document.getElementById(`week-view-${tab.id}`);
         const timeIndicators = document.getElementById(`time-indicators-${tab.id}`) || createTimeIndicatorsContainer(tab);
+        
+        if (!weekDatesHeader || !weekView || !timeIndicators) return;
         
         // Clear previous week view
         weekDatesHeader.innerHTML = '';
@@ -495,6 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCourses(tab = getActiveTab()) {
         // Select the correct tab week view
         const weekView = document.getElementById(`week-view-${tab.id}`);
+        if (!weekView) return;
         
         // Clear existing events
         weekView.querySelectorAll('.event').forEach(event => event.remove());
@@ -555,13 +694,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to open the edit modal for a course
     function openEditModal(course) {
+        console.log(course)
         // Set form values to the course values
-        document.getElementById('course-num').value = course.courseNum;
-        document.getElementById('course-title').value = course.title;
-        document.getElementById('instructor').value = course.instructor;
-        document.getElementById('start-time').value = course.startTime;
-        document.getElementById('end-time').value = course.endTime;
-        document.getElementById('color').value = course.color;
+        const courseNumEl = document.getElementById('course-num');
+        const courseTitleEl = document.getElementById('course-title');
+        const instructorEl = document.getElementById('instructor');
+        const creditsEl = document.getElementById('credits');
+        const startTimeEl = document.getElementById('start-time');
+        const endTimeEl = document.getElementById('end-time');
+        const colorEl = document.getElementById('color');
+
+        if (courseNumEl) courseNumEl.value = course.courseNum;
+        if (courseTitleEl) courseTitleEl.value = course.title;
+        if (instructorEl) instructorEl.value = course.instructor;
+        if (creditsEl) creditsEl.value = course.credits;
+        if (startTimeEl) startTimeEl.value = course.startTime;
+        if (endTimeEl) endTimeEl.value = course.endTime;
+        if (colorEl) colorEl.value = course.color;
         
         // Set days checkboxes
         document.querySelectorAll('input[name="days"]').forEach(checkbox => {
@@ -570,14 +719,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Change form behavior to update instead of create
         const submitBtn = document.getElementById('submit-btn');
-        submitBtn.textContent = 'Update Course';
+        if (submitBtn) submitBtn.textContent = 'Update Course';
         
         // Store the course ID for updating
-        courseForm.dataset.editingCourseId = course.id;
+        if (courseForm) courseForm.dataset.editingCourseId = course.id;
         
         // Add delete button
         let deleteBtn = document.getElementById('delete-btn');
-        if (!deleteBtn) {
+        if (!deleteBtn && submitBtn) {
             deleteBtn = document.createElement('button');
             deleteBtn.id = 'delete-btn';
             deleteBtn.type = 'button';
@@ -586,12 +735,14 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.insertAdjacentElement('afterend', deleteBtn);
             
             deleteBtn.addEventListener('click', function() {
-                const courseId = parseInt(courseForm.dataset.editingCourseId);
-                deleteCourse(courseId);
+                const courseId = courseForm ? parseInt(courseForm.dataset.editingCourseId) : null;
+                if (courseId) {
+                    deleteCourse(courseId);
+                }
                 closeModal();
             });
         }
-        deleteBtn.style.display = 'inline-block';
+        if (deleteBtn) deleteBtn.style.display = 'inline-block';
         
         // Open the modal
         openModal();
@@ -603,6 +754,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const courseIndex = activeTab.courses.findIndex(course => course.id === courseId);
         
         if (courseIndex !== -1) {
+            // Remove course credits from total credits
+            activeTab.totalCreadits -= activeTab.courses[courseIndex].credits
+
             // Remove the course from the array
             activeTab.courses.splice(courseIndex, 1);
             
@@ -611,7 +765,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (courseElement) {
                 courseElement.remove();
             }
-            
+
+            // Update total credits base on active tab
+            if (totalCreadits) totalCreadits.innerText = activeTab.totalCreadits;
+
             // Update the calendar
             renderWeekView();
             
@@ -624,10 +781,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set month and year
         const activeTab = getActiveTab();
         const options = { year: 'numeric', month: 'long' };
-        miniMonthYearElement.textContent = new Intl.DateTimeFormat('en-US', options).format(activeTab.selectedDate);
+        if (miniMonthYearElement) miniMonthYearElement.textContent = new Intl.DateTimeFormat('en-US', options).format(activeTab.selectedDate);
         
         // Clear previous mini calendar days
-        miniCalendarDays.innerHTML = '';
+        if (miniCalendarDays) miniCalendarDays.innerHTML = '';
         
         // Get first day of the month
         const firstDay = new Date(activeTab.selectedDate.getFullYear(), activeTab.selectedDate.getMonth(), 1);
@@ -640,7 +797,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create empty cells for days before first day of the month
         for (let i = 0; i < startingDay; i++) {
             const emptyDay = document.createElement('div');
-            miniCalendarDays.appendChild(emptyDay);
+            if (miniCalendarDays) miniCalendarDays.appendChild(emptyDay);
         }
         
         // Create cells for days in the month
@@ -667,12 +824,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeTab.currentDate = new Date(activeTab.selectedDate);
                 updateTabHeader();
                 renderWeekView();
-                
-                // Save to localStorage
-                //saveTabs(); Not need (For a different features)
             });
             
-            miniCalendarDays.appendChild(dayDiv);
+            if (miniCalendarDays) miniCalendarDays.appendChild(dayDiv);
         }
     }
 
@@ -681,18 +835,12 @@ document.addEventListener('DOMContentLoaded', () => {
         activeTab.currentDate.setDate(activeTab.currentDate.getDate() + direction * 7);
         updateTabHeader();
         renderWeekView();
-        
-        // Save to localStorage
-        //saveTabs();
     }
 
     function navigateMiniMonth(direction) {
         const activeTab = getActiveTab();
         activeTab.selectedDate.setMonth(activeTab.selectedDate.getMonth() + direction);
         updateMiniCalendar();
-        
-        // Save to localStorage
-        //saveTabs();
     }
 
     function goToToday() {
@@ -702,25 +850,24 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTabHeader();
         renderWeekView();
         updateMiniCalendar();
-        
-        // Save to localStorage
-        //saveTabs();
     }
 
     function openModal() {
         hideErrorMessage();
-        courseModal.style.display = 'flex';
+        if (courseModal) courseModal.style.display = 'flex';
+        const searchEl = document.getElementById('class-search');
+        if (searchEl) searchEl.select();
     }
 
     function closeModal() {
-        courseModal.style.display = 'none';
-        courseForm.reset();
+        if (courseModal) courseModal.style.display = 'none';
+        if (courseForm) courseForm.reset();
         hideErrorMessage();
         
         // Reset form to create mode
         const submitBtn = document.getElementById('submit-btn');
-        submitBtn.textContent = 'Add Course';
-        courseForm.removeAttribute('data-editing-course-id');
+        if (submitBtn) submitBtn.textContent = 'Add Course';
+        if (courseForm) courseForm.removeAttribute('data-editing-course-id');
         
         // Hide delete button
         const deleteBtn = document.getElementById('delete-btn');
@@ -764,11 +911,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const courseNum = document.getElementById('course-num').value;
         const title = document.getElementById('course-title').value;
         const instructor = document.getElementById('instructor').value;
+        const credits = parseInt(document.getElementById('credits').value) || 0;
         const dayCheckboxes = document.querySelectorAll('input[name="days"]:checked');
         const selectedDays = Array.from(dayCheckboxes).map(checkbox => checkbox.value);
         const startTime = document.getElementById('start-time').value;
         const endTime = document.getElementById('end-time').value;
         const color = document.getElementById('color').value;
+
         
         if (selectedDays.length === 0) {
             showErrorMessage("Please select at least one day");
@@ -777,10 +926,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Create new course object
         const newCourse = {
-            id: courseForm.dataset.editingCourseId ? parseInt(courseForm.dataset.editingCourseId) : Date.now(),
+            id: courseForm && courseForm.dataset.editingCourseId ? parseInt(courseForm.dataset.editingCourseId) : Date.now(),
             courseNum,
             title,
             instructor,
+            credits,
             days: selectedDays,
             startTime,
             endTime,
@@ -788,7 +938,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const activeTab = getActiveTab();
-        const isEditing = courseForm.dataset.editingCourseId;
+        activeTab.totalCreadits += credits;
+
+        const isEditing = courseForm && courseForm.dataset.editingCourseId;
         
         // Check for conflicts (exclude self when editing)
         const conflict = hasConflict(newCourse, isEditing ? newCourse.id : null);
@@ -835,9 +987,11 @@ document.addEventListener('DOMContentLoaded', () => {
             courseNameSpan.textContent = title;
             
             courseDiv.append(courseDotDiv, courseNameSpan);
-            classList.appendChild(courseDiv);
+            if (classList) classList.appendChild(courseDiv);
         }
         
+
+        if (totalCreadits) totalCreadits.innerText = activeTab.totalCreadits
         // Update calendar
         renderWeekView();
         
@@ -846,6 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Close modal
         closeModal();
+        console.log(activeTab)
     }
 
     // Utility functions
@@ -859,22 +1014,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const period = hour >= 12 ? 'PM' : 'AM';
         const displayHour = hour % 12 || 12; // Convert 0 to 12 for 12 AM
         return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
-    }
-
-    // New functions for class search
-    async function getData(type) {
-        const url = type;
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Response status: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error(error.message);
-            return null;
-        }
     }
 
     async function searchClasses(searchTerm) {
@@ -912,24 +1051,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleSearchInput() {
-        const searchTerm = document.getElementById('class-search').value.trim();
+        const searchInputEl = document.getElementById('class-search');
+        const searchTerm = searchInputEl ? searchInputEl.value.trim() : '';
         const searchResults = document.getElementById('search-results');
         
         if (searchTerm.length < 2) {
-            searchResults.innerHTML = '';
+            if (searchResults) searchResults.innerHTML = '';
             return;
         }
         
         // Debounce the search to prevent too many rapid requests
         clearTimeout(window.searchTimeout);
         window.searchTimeout = setTimeout(async () => {
-            searchResults.innerHTML = '<div class="loading">Searching...</div>';
+            if (searchResults) searchResults.innerHTML = '<div class="loading">Searching...</div>';
             const results = await searchClasses(searchTerm);
             displaySearchResults(results, searchResults);
         }, 300); // 300ms debounce
     }
 
     function displaySearchResults(results, container) {
+        if (!container) return;
         container.innerHTML = '';
         
         if (!results || results.length === 0) {
@@ -962,10 +1103,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function populateFormWithClass(classData) {
+        console.log(classData)
         // Populate the form fields with the class data
-        document.getElementById('course-num').value = classData.Course || '';
-        document.getElementById('course-title').value = classData['Course Title'] || '';
-        document.getElementById('instructor').value = classData.Instructor || '';
+        const courseNumEl = document.getElementById('course-num');
+        const courseTitleEl = document.getElementById('course-title');
+        const instructorEl = document.getElementById('instructor');
+        const creditsEl = document.getElementById('credits');
+        const startTimeEl = document.getElementById('start-time');
+        const endTimeEl = document.getElementById('end-time');
+        const colorEl = document.getElementById('color');
+
+        if (courseNumEl) courseNumEl.value = classData.Course || '';
+        if (courseTitleEl) courseTitleEl.value = classData['Course Title'] || '';
+        if (instructorEl) instructorEl.value = classData.Instructor || '';
 
         // Parse and set schedule (days and times)
         if (classData.Schedule) {
@@ -1003,24 +1153,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 try {
                     // Convert times to 24-hour format for input fields
-                    document.getElementById('start-time').value = convertTo24Hour(startTime);
-                    document.getElementById('end-time').value = convertTo24Hour(endTime);
+                    if (startTimeEl) startTimeEl.value = convertTo24Hour(startTime);
+                    if (endTimeEl) endTimeEl.value = convertTo24Hour(endTime);
                 } catch (error) {
                     console.error('Error converting time:', error);
-                    // If time conversion fails, leave the fields empty
-                    document.getElementById('start-time').value = '';
-                    document.getElementById('end-time').value = '';
+                    if (startTimeEl) startTimeEl.value = '';
+                    if (endTimeEl) endTimeEl.value = '';
                 }
             }
         }
         
-        console.log(typeof document.getElementById('color').value )
-        // Set a random color if default
-        if (document.getElementById('color').value == "#4285f4") {
-            console.log("True")
-            const randomColor = getRandomColor();
-            document.getElementById('color').value = randomColor;
+        if (creditsEl && classData.Credits) {
+            creditsEl.value = classData.Credits;
         }
+        // Set the color to blue as default
+        if (colorEl) colorEl.value = "#4285f4";
     }
 
     function convertTo24Hour(time12h) {
@@ -1056,6 +1203,43 @@ document.addEventListener('DOMContentLoaded', () => {
             color += letters[Math.floor(Math.random() * 16)];
         }
         return color;
+    }
+
+    // Share only the active tab (not all tabs)
+    async function shareSchedule(){
+        const activeTab = getActiveTab();
+        const container = document.getElementById("share-schedule-modal");
+        const urlEl = document.getElementById("share-schedule-url");
+        const closeBtn = document.querySelector('#share-schedule-modal .close');
+        // Send only the activeTab object to backend
+        try {
+            const response = await fetch('/api/share', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(activeTab)
+            });
+            const data = await response.json();
+            console.log(data);
+
+            if (container) container.style.display = 'flex';
+            if (urlEl) urlEl.innerText = data.url;
+
+
+            document.getElementById("copy-url").addEventListener('click', (e) => {
+                const copyBtn = e.target;
+                navigator.clipboard.writeText(urlEl.textContent).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+                })
+                .catch(err => console.error('Failed to copy:', err));
+            })
+        } catch (error) {
+            console.error('Error sharing schedule:', error);
+        }
+
+        closeBtn.addEventListener('click', () => {container.style.display = 'none'});
     }
     
     // Add window resize handler to ensure calendar remains properly sized

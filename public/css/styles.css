@@ -172,6 +172,21 @@ body {
     margin-bottom: 15px;
 }
 
+#share-schedule {
+    background-color: #4285F4;
+    color: white;
+    border: none;
+    border-radius: 24px;
+    padding: 8px 15px;
+    margin-left: 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#share-schedule:hover {
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
 .navigation {
     display: flex;
     margin-right: 15px;
@@ -483,6 +498,7 @@ body {
 }
 
 .form-group input[type="text"],
+.form-group input[type="number"],
 .form-group input[type="time"] {
     width: 100%;
     padding: 8px;
@@ -648,3 +664,4 @@ body {
         overflow-x: auto;
     }
 }
+
