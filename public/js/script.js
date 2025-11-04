@@ -1,4 +1,3 @@
-/* full file: public/js/script.js (only shareSchedule function changed) */
 document.addEventListener('DOMContentLoaded', async () => {
 
     // Calendar data - keep this at the top so it's available before use
