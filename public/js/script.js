@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // 2) If not in memory, check persisted tabs and update one if found
-        try {copy 
+        try {
             const savedTabs = localStorage.getItem('semesterSyncTabs');
             if (savedTabs) {
                 const parsedTabs = JSON.parse(savedTabs);
