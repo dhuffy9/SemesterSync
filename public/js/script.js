@@ -1,3 +1,4 @@
+/* full file: public/js/script.js (only shareSchedule function changed) */
 document.addEventListener('DOMContentLoaded', async () => {
 
     // Calendar data - keep this at the top so it's available before use
@@ -55,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // 2) If not in memory, check persisted tabs and update one if found
-        try {
+        try {copy 
             const savedTabs = localStorage.getItem('semesterSyncTabs');
             if (savedTabs) {
                 const parsedTabs = JSON.parse(savedTabs);
@@ -88,7 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     setActiveTab(saved.id);
-                    renderWeekView(saved);
+                    rencopy-urlderWeekView(saved);
                     updateClassList();
                     return;
                 }
@@ -1227,6 +1228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const activeTab = getActiveTab();
         const container = document.getElementById("share-schedule-modal");
         const urlEl = document.getElementById("share-schedule-url");
+        const copyBtn = document.getElementById("copy-url");
         const closeBtn = document.querySelector('#share-schedule-modal .close');
         // Send only the activeTab object to backend
         try {
@@ -1243,20 +1245,60 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (container) container.style.display = 'flex';
             if (urlEl) urlEl.innerText = data.url;
 
+            // Set (or replace) copy handler — use onclick to avoid duplicate handlers on repeated opens
+            if (copyBtn) {
+                copyBtn.onclick = async (e) => {
+                    e.preventDefault();
+                    const textToCopy = urlEl ? (urlEl.textContent || urlEl.innerText || '') : '';
+                    if (!textToCopy) return;
 
-            document.getElementById("copy-url").addEventListener('click', (e) => {
-                const copyBtn = e.target;
-                navigator.clipboard.writeText(urlEl.textContent).then(() => {
-                    copyBtn.textContent = 'Copied!';
-                    setTimeout(() => copyBtn.textContent = 'Copy', 1500);
-                })
-                .catch(err => console.error('Failed to copy:', err));
-            })
+                    // Try navigator.clipboard first (preferred)
+                    try {
+                        await navigator.clipboard.writeText(textToCopy);
+                        const prev = copyBtn.textContent;
+                        copyBtn.textContent = 'Copied!';
+                        setTimeout(() => { copyBtn.textContent = prev; }, 1500);
+                        return;
+                    } catch (err) {
+                        // fallback below
+                        console.warn('navigator.clipboard failed, falling back to execCommand:', err);
+                    }
+
+                    // Fallback: temporary textarea + execCommand
+                    try {
+                        const ta = document.createElement('textarea');
+                        ta.value = textToCopy;
+                        // Avoid page jump
+                        ta.style.position = 'fixed';
+                        ta.style.top = '-9999px';
+                        document.body.appendChild(ta);
+                        ta.focus();
+                        ta.select();
+                        const ok = document.execCommand('copy');
+                        ta.remove();
+                        if (ok) {
+                            const prev = copyBtn.textContent;
+                            copyBtn.textContent = 'Copied!';
+                            setTimeout(() => { copyBtn.textContent = prev; }, 1500);
+                        } else {
+                            throw new Error('execCommand returned false');
+                        }
+                    } catch (err2) {
+                        console.error('Fallback copy failed:', err2);
+                        alert('Copy failed — please select the URL and press Cmd+C to copy.');
+                    }
+                };
+            } else {
+                console.warn('Copy button (#copy-url) not found in DOM when sharing schedule.');
+            }
+
+            // Attach close handler only if closeBtn exists
+            if (closeBtn && container) {
+                closeBtn.addEventListener('click', () => { container.style.display = 'none'; });
+            }
         } catch (error) {
             console.error('Error sharing schedule:', error);
         }
-
-        closeBtn.addEventListener('click', () => {container.style.display = 'none'});
     }
     
     // Add window resize handler to ensure calendar remains properly sized
