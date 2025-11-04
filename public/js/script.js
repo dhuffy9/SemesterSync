@@ -194,6 +194,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 parsedTabs.forEach(tab => {
                     tab.currentDate = new Date(tab.currentDate);
                     tab.selectedDate = new Date(tab.selectedDate);
+                    // normalize credits to numbers
+                    if (Array.isArray(tab.courses)) {
+                        tab.courses.forEach(c => {
+                            c.credits = Number(c.credits) || 0;
+                        });
+                    } else {
+                        tab.courses = [];
+                    }
+                    // recalc totals to ensure correctness
+                    recalcTotal(tab);
                 });
                 tabs = parsedTabs;
             } catch (e) {
@@ -754,12 +764,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const courseIndex = activeTab.courses.findIndex(course => course.id === courseId);
         
         if (courseIndex !== -1) {
-            // Remove course credits from total credits
-            activeTab.totalCreadits -= activeTab.courses[courseIndex].credits
-
             // Remove the course from the array
             activeTab.courses.splice(courseIndex, 1);
             
+            // Recalculate total credits from the remaining courses
+            recalcTotal(activeTab);
+
             // Remove the course from the class list
             const courseElement = document.querySelector(`.class-item[data-course-id="${courseId}"]`);
             if (courseElement) {
@@ -938,7 +948,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         
         const activeTab = getActiveTab();
-        activeTab.totalCreadits += credits;
 
         const isEditing = courseForm && courseForm.dataset.editingCourseId;
         
@@ -990,6 +999,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (classList) classList.appendChild(courseDiv);
         }
         
+        // Recalculate total credits from authoritative course list
+        recalcTotal(activeTab);
 
         if (totalCreadits) totalCreadits.innerText = activeTab.totalCreadits
         // Update calendar
@@ -1006,6 +1017,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Utility functions
     function formatDate(date) {
         return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    }
+
+    // Recalculate total credits for a tab from its courses (authoritative source)
+    function recalcTotal(tab) {
+        if (!tab) return;
+        tab.totalCreadits = (tab.courses || []).reduce((sum, c) => sum + (Number(c.credits) || 0), 0);
     }
 
     // Updated format time function for consistent time display
