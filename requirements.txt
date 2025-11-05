@@ -1,6 +1,6 @@
 flask
 requests
-BeautifulSoup
+beautifulsoup4
 pandas 
 datetime 
 uuid
