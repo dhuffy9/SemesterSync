@@ -1,0 +1,6 @@
+flask
+requests
+BeautifulSoup
+pandas 
+datetime 
+uuid

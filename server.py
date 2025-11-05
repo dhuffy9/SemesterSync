@@ -180,7 +180,7 @@ if class_table:
             for i, value in enumerate(class_data):
                 if i < len(headers):
                     header = headers[i] if headers[i] else f"Column{i+1}"
-                    if header == headers[-1]: # when Course Schedule get the href of the coruse 
+                    if header == headers[-1]: # when Course Schedule get the href of the coruse
                         class_dict[header] = cells[-1].find_all("a")[0].get("href")
                     else:
                         class_dict[header] = value
