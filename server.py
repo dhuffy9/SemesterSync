@@ -181,11 +181,23 @@ if class_table:
                 if i < len(headers):
                     header = headers[i] if headers[i] else f"Column{i+1}"
                     if header == headers[-1]: # when Course Schedule get the href of the coruse
+                        print(cells[5].find_all("span")[0])
                         link = cells[-1].find_all("a")
                         if link:
                             class_dict[header] = link[0].get("href")
                         else:
                             class_dict[header] = None
+                    elif header == headers[5]: # when Schedule get all available times
+                        span = cells[5].find("span", class_="control-label")
+                        print(span)
+                        if span.get("title"):
+                            schedule = span.get("title").replace("\n", "").replace("\r", "").strip().split(";") # list of available times
+                            for time in schedule[:]: # craeates temp schedule variable
+                                if time != "" and "," in time:
+                                    
+
+                        else:
+                            class_dict[header] = value
                     else:
                         class_dict[header] = value
                 else:
